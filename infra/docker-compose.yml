@@ -1,0 +1,75 @@
+# Réseau Lightning local (regtest) pour la démo « une commande ».
+# Topologie : client ──► vendeuse ──► livreur
+#                           └──────► sesame (frais de service)
+# Les factures hold sont émises par le nœud de la vendeuse.
+name: sesame-regtest
+
+x-lnd: &lnd
+  image: lightninglabs/lnd:v0.18.5-beta
+  restart: unless-stopped
+  depends_on: [bitcoind]
+  command:
+    - --noseedbackup
+    - --bitcoin.active
+    - --bitcoin.regtest
+    - --bitcoin.node=bitcoind
+    - --bitcoind.rpchost=bitcoind:18443
+    - --bitcoind.rpcuser=sesame
+    - --bitcoind.rpcpass=sesame-regtest-only
+    - --bitcoind.zmqpubrawblock=tcp://bitcoind:28334
+    - --bitcoind.zmqpubrawtx=tcp://bitcoind:28335
+    - --rpclisten=0.0.0.0:10009
+    - --restlisten=0.0.0.0:8080
+    - --listen=0.0.0.0:9735
+    - --tlsextradomain=lnd-client
+    - --tlsextradomain=lnd-seller
+    - --tlsextradomain=lnd-courier
+    - --tlsextradomain=lnd-sesame
+    - --protocol.wumbo-channels
+    - --accept-keysend
+
+services:
+  bitcoind:
+    image: polarlightning/bitcoind:27.0
+    restart: unless-stopped
+    command:
+      - -regtest=1
+      - -server=1
+      - -txindex=1
+      - -fallbackfee=0.0002
+      - -rpcuser=sesame
+      - -rpcpassword=sesame-regtest-only
+      - -rpcallowip=0.0.0.0/0
+      - -rpcbind=0.0.0.0
+      - -zmqpubrawblock=tcp://0.0.0.0:28334
+      - -zmqpubrawtx=tcp://0.0.0.0:28335
+
+  lnd-client:
+    <<: *lnd
+    hostname: lnd-client
+    volumes: [lnd-client:/root/.lnd]
+    ports: ["127.0.0.1:8081:8080"]
+
+  lnd-seller:
+    <<: *lnd
+    hostname: lnd-seller
+    volumes: [lnd-seller:/root/.lnd]
+    ports: ["127.0.0.1:8082:8080"]
+
+  lnd-courier:
+    <<: *lnd
+    hostname: lnd-courier
+    volumes: [lnd-courier:/root/.lnd]
+    ports: ["127.0.0.1:8083:8080"]
+
+  lnd-sesame:
+    <<: *lnd
+    hostname: lnd-sesame
+    volumes: [lnd-sesame:/root/.lnd]
+    ports: ["127.0.0.1:8084:8080"]
+
+volumes:
+  lnd-client:
+  lnd-seller:
+  lnd-courier:
+  lnd-sesame:
