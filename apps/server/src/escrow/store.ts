@@ -19,6 +19,13 @@ export class MemoryOrderStore implements OrderStore {
     return undefined;
   }
 
+  async listByShop(shopId: string): Promise<Order[]> {
+    return [...this.orders.values()]
+      .filter((o) => o.shopId === shopId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map((o) => structuredClone(o));
+  }
+
   async listActionable(): Promise<Order[]> {
     return [...this.orders.values()]
       .filter((o) => (!isTerminal(o.state) && o.state !== 'DRAFT') || o.payouts.some((p) => p.status === 'pending'))

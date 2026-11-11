@@ -27,6 +27,8 @@ export interface Order {
   courierMsat: bigint;
   /** Frais de service Sésame, prélevés sur la part vendeuse à la libération. */
   feeMsat: bigint;
+  /** Les mêmes frais, en FCFA (affichage). */
+  feeXof: number;
   state: OrderState;
   paymentHash?: string | undefined;
   bolt11?: string | undefined;
@@ -49,6 +51,8 @@ export interface OrderStore {
   get(id: string): Promise<Order | undefined>;
   save(order: Order): Promise<void>;
   findByPaymentHash(paymentHash: string): Promise<Order | undefined>;
+  /** Commandes d'une boutique, les plus récentes d'abord. */
+  listByShop(shopId: string): Promise<Order[]>;
   /** Commandes qui demandent encore une action du planificateur. */
   listActionable(): Promise<Order[]>;
 }

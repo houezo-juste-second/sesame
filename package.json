@@ -12,10 +12,15 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev:server": "tsx watch apps/server/src/main.ts",
+    "dev:web": "npm run dev -w @sesame/web",
+    "build": "npm run build -w @sesame/web",
+    "start": "tsx apps/server/src/main.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "tsx": "~4.23.15",
     "typescript": "~5.9.3",
     "vitest": "~5.1.0"
   },

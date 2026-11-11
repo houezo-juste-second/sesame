@@ -70,6 +70,7 @@ export type EngineEventType =
 export interface EngineEvent {
   type: EngineEventType;
   orderId: string;
+  shopId: string;
   state: OrderState;
   at: Date;
   data?: Record<string, string | number> | undefined;
@@ -130,11 +131,12 @@ export class EscrowEngine {
     if (!Number.isInteger(input.deliveryHours) || input.deliveryHours < 2 || input.deliveryHours > 12) {
       throw new EscrowError('INVALID_DELIVERY_HOURS');
     }
-    let amountMsat: bigint, courierMsat: bigint, feeMsat: bigint;
+    let amountMsat: bigint, courierMsat: bigint, feeMsat: bigint, feeXof: number;
     try {
       amountMsat = xofToMsat(input.itemXof + input.deliveryFeeXof, input.xofPerBtc);
       courierMsat = input.deliveryFeeXof > 0 ? xofToMsat(input.deliveryFeeXof, input.xofPerBtc) : 0n;
-      feeMsat = xofToMsat(serviceFeeXof(input.itemXof, { pro: input.pro ?? false }), input.xofPerBtc);
+      feeXof = serviceFeeXof(input.itemXof, { pro: input.pro ?? false });
+      feeMsat = xofToMsat(feeXof, input.xofPerBtc);
     } catch {
       throw new EscrowError('INVALID_AMOUNT');
     }
@@ -150,6 +152,7 @@ export class EscrowEngine {
       amountMsat,
       courierMsat,
       feeMsat,
+      feeXof,
       state: 'DRAFT',
       payouts: [],
       createdAt: now,
@@ -381,7 +384,7 @@ export class EscrowEngine {
   }
 
   private emit(type: EngineEventType, order: Order, data?: Record<string, string | number>): void {
-    this.deps.onEvent?.({ type, orderId: order.id, state: order.state, at: this.clock(), data });
+    this.deps.onEvent?.({ type, orderId: order.id, shopId: order.shopId, state: order.state, at: this.clock(), data });
   }
 
   /** Sérialise les opérations sur une même commande (évite double libération / course avec le planificateur). */
