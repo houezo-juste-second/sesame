@@ -4,6 +4,7 @@
  */
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z, ZodError } from 'zod';
+import * as nip19 from 'nostr-tools/nip19';
 import { STATE_LABEL_FR } from '@sesame/core';
 import { bearer, hashPin, verifyPin, type Grant, type Role } from './auth.js';
 import { extractOrder, MAX_INPUT_CHARS } from './ai/extract.js';
@@ -229,11 +230,30 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     sse(req, reply, (fn) => ctx.hub.subscribeShop(shop.id, fn), null);
   });
 
-  app.get('/api/shops/:slug/reputation', async (req) => {
+  function shopBySlug(req: FastifyRequest): Shop {
     const { slug } = z.object({ slug: z.string().max(60) }).parse(req.params);
     const shop = ctx.shops.bySlug(slug);
     if (!shop) throw new HttpError(404, 'SHOP_NOT_FOUND', 'Boutique introuvable.');
-    return { shopName: shop.name, city: shop.city, since: shop.createdAt, ...(await reputation(shop.id)) };
+    return shop;
+  }
+
+  app.get('/api/shops/:slug/reputation', async (req) => {
+    const shop = shopBySlug(req);
+    return { shopName: shop.name, city: shop.city, since: shop.createdAt, npub: nip19.npubEncode(shop.nostrPubkey), ...(await reputation(shop.id)) };
+  });
+
+  /** Reçus signés de la boutique : le navigateur les vérifie lui-même (signature + preuve de paiement). */
+  app.get('/api/shops/:slug/receipts', async (req) => {
+    const shop = shopBySlug(req);
+    return {
+      shopName: shop.name,
+      city: shop.city,
+      since: shop.createdAt,
+      pubkey: shop.nostrPubkey,
+      npub: nip19.npubEncode(shop.nostrPubkey),
+      relays: ctx.config.nostrRelays ?? [],
+      events: ctx.receipts.listByShop(shop.id),
+    };
   });
 
   // ---------------------------------------------------------------- commandes

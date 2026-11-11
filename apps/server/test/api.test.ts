@@ -161,3 +161,44 @@ describe('API — contrôle d’accès et validation', () => {
     expect(h.json()).toMatchObject({ ok: true, mode: 'simulation' });
   });
 });
+
+describe('API — reçus Nostr vérifiables', () => {
+  it('une livraison produit un reçu signé, vérifiable sans faire confiance au serveur', async () => {
+    const { checkReceipt } = await import('@sesame/core');
+    const shop = await newShop();
+    const { order, clientToken } = await newOrder(shop.sellerToken);
+    const s = generateSesame();
+    await app.inject({ method: 'POST', url: `/api/orders/${order.id}/lock`, headers: auth(clientToken), payload: { paymentHash: s.paymentHash } });
+    await app.inject({ method: 'POST', url: `/api/demo/pay/${order.id}`, headers: auth(clientToken) });
+    await app.inject({ method: 'POST', url: `/api/orders/${order.id}/release`, headers: auth(clientToken), payload: { preimage: s.preimage } });
+    await ctx.receipts.idle();
+
+    const r = await app.inject({ method: 'GET', url: `/api/shops/${shop.slug}/receipts` });
+    expect(r.statusCode).toBe(200);
+    const body = r.json() as { pubkey: string; npub: string; events: Array<{ pubkey: string }> };
+    expect(body.npub).toMatch(/^npub1/);
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0]!.pubkey).toBe(body.pubkey);
+    expect(checkReceipt(body.events[0] as never)).toEqual({ valid: true, outcome: 'released', proofOfPayment: true });
+    expect(JSON.stringify(body)).not.toContain('2 pagnes wax');
+  });
+
+  it('publie sur les relais quand un publieur est configuré', async () => {
+    const published: string[] = [];
+    const c2 = createServerContext({
+      mode: 'simulation', fixedXofPerBtc: 60_000_000,
+      publisher: { publish: async (ev) => { published.push(ev.id); return 2; } },
+    });
+    const a2 = buildApp(c2);
+    const sh = (await a2.inject({ method: 'POST', url: '/api/shops', payload: { name: 'Test', city: 'Dakar', pin: '1234' } })).json();
+    const o = (await a2.inject({ method: 'POST', url: '/api/orders', headers: auth(sh.sellerToken), payload: { itemLabel: 'x', itemXof: 1000, deliveryFeeXof: 0, deliveryHours: 6 } })).json();
+    const s = generateSesame();
+    await a2.inject({ method: 'POST', url: `/api/orders/${o.order.id}/lock`, headers: auth(o.clientToken), payload: { paymentHash: s.paymentHash } });
+    await a2.inject({ method: 'POST', url: `/api/demo/pay/${o.order.id}`, headers: auth(o.clientToken) });
+    await a2.inject({ method: 'POST', url: `/api/orders/${o.order.id}/cancel`, headers: auth(sh.sellerToken) });
+    await c2.receipts.idle();
+    expect(published).toHaveLength(1);
+    expect(c2.db.prepare('SELECT relays_ok FROM nostr_events').get()).toEqual({ relays_ok: 2 });
+    await a2.close();
+  });
+});

@@ -9,3 +9,4 @@ coverage/
 *.sqlite-journal
 *.log
 .DS_Store
+data/

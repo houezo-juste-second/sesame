@@ -135,6 +135,10 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
             <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b>{new Intl.NumberFormat('fr-FR').format(data.summary.lockedXof)}</b><span class="tiny" style="color:#C9C7F2">FCFA bloqués</span></div>
           </div>
         </section>
+        <a class="card soft row small" href={`/verify/${data.shop.slug}`} target="_blank" rel="noopener" style="text-decoration:none;color:var(--indigo-ink)">
+          <span class="grow"><strong>Ma réputation publique</strong> — reçus signés et vérifiables, à partager avec vos clients</span>
+          <span aria-hidden="true">→</span>
+        </a>
         <h2 style="font-size:16px">Commandes</h2>
         {data.orders.length === 0 && <div class="card small muted">Aucune commande pour l'instant. Créez-en une et envoyez le lien à votre client sur WhatsApp.</div>}
         <div class="stack" style="gap:8px">

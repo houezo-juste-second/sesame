@@ -120,6 +120,10 @@ function OrderScreen({ order, busy, onPay }: { order: OrderView; busy: boolean; 
         <div class="row" style="gap:8px">
           <div class="stat"><b style="color:var(--green)">{rep.released}</b><span class="tiny muted">livraisons réussies</span></div>
           <div class="stat"><b>{rep.refunded}</b><span class="tiny muted">remboursements</span></div>
+          <a class="stat" href={`/verify/${order.shopSlug}`} target="_blank" rel="noopener" style="text-decoration:none;display:flex;flex-direction:column;justify-content:center">
+            <span class="tiny" style="font-weight:600;color:var(--indigo)">Vérifier</span>
+            <span class="tiny muted">les reçus</span>
+          </a>
         </div>
         <section class="card stack">
           <h2 style="font-size:16px;line-height:1.3">{order.itemLabel}</h2>

@@ -20,7 +20,7 @@ export interface AuditEntry extends AuditInput {
   hash: string;
 }
 
-const GENESIS = '0'.repeat(64);
+export const GENESIS = '0'.repeat(64);
 const FORBIDDEN_KEYS = /preimage|secret|token|macaroon|password|pin|nwc/i;
 const FORBIDDEN_VALUES = /nostr\+walletconnect:|nsec1|^sesame:/i;
 
@@ -31,7 +31,7 @@ function canonical(e: Omit<AuditEntry, 'hash'>): string {
   return JSON.stringify([e.seq, e.at, e.orderId, e.event, payload, e.prevHash]);
 }
 
-function digest(e: Omit<AuditEntry, 'hash'>): string {
+export function digest(e: Omit<AuditEntry, 'hash'>): string {
   return createHash('sha256').update(canonical(e)).digest('hex');
 }
 

@@ -25,7 +25,13 @@ export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-export class TokenStore {
+export interface TokenRegistry {
+  issue(grant: Grant): string;
+  resolve(token: string | undefined): Grant | undefined;
+}
+
+/** Registre en mémoire (tests unitaires). En production : SqliteTokenStore. */
+export class TokenStore implements TokenRegistry {
   private readonly grants = new Map<string, Grant>();
 
   issue(grant: Grant): string {

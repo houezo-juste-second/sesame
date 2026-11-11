@@ -20,11 +20,13 @@ Sésame est un séquestre Lightning **non-custodial** pour le commerce sur Whats
 |---|---|
 | `packages/core` : sésame (P/H), montants FCFA ↔ msat, machine à états | ✅ testé |
 | `apps/server` : moteur de séquestre, API HTTP, temps réel (SSE), journal d'audit | ✅ testé |
+| Stockage SQLite (`node:sqlite`, aucune dépendance) — secrets chiffrés AES-256-GCM | ✅ testé, survit au redémarrage |
+| Reçus Nostr signés par la boutique + page publique `/verify/:boutique` (vérification dans le navigateur) | ✅ testé |
 | `apps/server/ai` : création de commande depuis une conversation WhatsApp (gratuit, hors ligne) | ✅ testé |
 | `apps/web` : application web mobile (PWA) — client, livreur, vendeuse | ✅ parcours complet vérifié dans un navigateur |
 | Paiements | 🟡 **simulés** pour l'instant (bandeau « DÉMO » à l'écran) |
 | `infra/` : réseau Lightning regtest (bitcoind + 4 nœuds LND) | 🟡 écrit, à valider |
-| Adaptateurs LND / NWC (vrais paiements), reçus Nostr | ⏳ à venir |
+| Adaptateurs LND / NWC (vrais paiements) | ⏳ à venir |
 
 ## Lancer la démo (2 minutes, sans Docker)
 
@@ -38,6 +40,8 @@ npm start         # http://127.0.0.1:8080 — mode simulation
 
 - Espace vendeuse : http://127.0.0.1:8080/v — boutique de démo `pagnes-de-fifame`, PIN `2026`.
 - Créez une commande, ouvrez le lien client, payez avec le « wallet de démo », assignez un livreur, puis libérez avec le sésame.
+- Réputation publique vérifiable : http://127.0.0.1:8080/verify/pagnes-de-fifame
+- Les données sont dans `data/sesame.sqlite`. Définissez `SESAME_MASTER_KEY` (voir `.env.example`) pour que les secrets chiffrés survivent aux redémarrages.
 
 Développement : `npm run dev:server` et `npm run dev:web` (http://localhost:5173), `npm test`, `npm run typecheck`.
 
@@ -58,6 +62,8 @@ docker compose -f infra/docker-compose.yml up -d
 - Le sésame P est généré sur le téléphone du client et transmis **une seule fois**, au moment de la libération.
 - **Sûr par défaut** : panne, perte du sésame ou absence d'action mènent toujours au remboursement.
 - Aucun secret ne peut être écrit dans le journal d'audit, et le code le vérifie.
+- Secrets au repos chiffrés (AES-256-GCM) ; jetons d'accès stockés uniquement hachés ; PIN en scrypt.
+- Reçus Nostr sans donnée personnelle (identifiant haché, montant et heure arrondis), vérifiés côté navigateur.
 
 ## Licence
 

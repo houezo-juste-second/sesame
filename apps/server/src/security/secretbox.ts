@@ -1,0 +1,35 @@
+/**
+ * Chiffrement des secrets au repos (sésame en attente, clés Nostr des boutiques) : AES-256-GCM.
+ * Format : base64url( nonce 12 octets ‖ tag 16 octets ‖ texte chiffré ).
+ */
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+
+export class SecretBox {
+  private readonly key: Buffer;
+
+  constructor(masterKeyHex: string) {
+    if (!/^[0-9a-fA-F]{64}$/.test(masterKeyHex)) {
+      throw new Error('SESAME_MASTER_KEY doit contenir 64 caractères hexadécimaux (32 octets).');
+    }
+    this.key = Buffer.from(masterKeyHex, 'hex');
+  }
+
+  static random(): SecretBox {
+    return new SecretBox(randomBytes(32).toString('hex'));
+  }
+
+  seal(plaintext: string): string {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', this.key, iv);
+    const body = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    return Buffer.concat([iv, cipher.getAuthTag(), body]).toString('base64url');
+  }
+
+  open(sealed: string): string {
+    const raw = Buffer.from(sealed, 'base64url');
+    if (raw.length < 29) throw new Error('SECRETBOX_INVALID');
+    const decipher = createDecipheriv('aes-256-gcm', this.key, raw.subarray(0, 12));
+    decipher.setAuthTag(raw.subarray(12, 28));
+    return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8');
+  }
+}

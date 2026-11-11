@@ -66,7 +66,8 @@ export class MemoryHoldWallet implements WalletAdapter {
 
   async cancelHoldInvoice(paymentHash: string): Promise<void> {
     const inv = this.invoices.get(paymentHash);
-    if (!inv) throw new Error('INVOICE_NOT_FOUND');
+    // Simulation : après un redémarrage, les factures simulées n'existent plus ; rien à rembourser.
+    if (!inv) return;
     if (inv.state === 'SETTLED') throw new Error('INVOICE_ALREADY_SETTLED');
     inv.state = 'CANCELED';
   }
