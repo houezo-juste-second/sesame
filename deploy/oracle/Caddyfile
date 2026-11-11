@@ -1,0 +1,8 @@
+# Caddy obtient et renouvelle automatiquement le certificat HTTPS (Let's Encrypt, gratuit).
+__DOMAIN__ {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080 {
+		# Flux temps réel (SSE) : pas de mise en tampon
+		flush_interval -1
+	}
+}

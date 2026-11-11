@@ -23,8 +23,13 @@ describe('SecretBox (AES-256-GCM)', () => {
     expect(() => box.open(tampered)).toThrow();
     expect(() => new SecretBox('22'.repeat(32)).open(c)).toThrow();
   });
-  it('refuse une clé maîtresse mal formée', () => {
+  it('refuse une clé maîtresse trop courte', () => {
     expect(() => new SecretBox('abc')).toThrow(/SESAME_MASTER_KEY/);
+  });
+  it('accepte une longue phrase secrète (valeur générée par l’hébergeur)', () => {
+    const k = 'Zm9vYmFyYmF6cXV4cXV1eGNvcmdlZ3JhdWx0Lw==extra';
+    expect(new SecretBox(k).open(new SecretBox(k).seal('ok'))).toBe('ok');
+    expect(() => new SecretBox('autre-phrase-secrete-tres-longue-123456').open(new SecretBox(k).seal('ok'))).toThrow();
   });
 });
 

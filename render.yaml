@@ -1,0 +1,31 @@
+# Déploiement Render (offre gratuite) — « New › Blueprint » puis choisir ce dépôt.
+# Limites de l'offre gratuite : mise en veille après 15 min sans visite, disque effacé
+# à chaque redémarrage (les commandes de démo repartent de zéro). Voir docs/DEPLOIEMENT.md.
+services:
+  - type: web
+    name: sesame
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST
+        value: 0.0.0.0
+      - key: SESAME_DB_PATH
+        value: data/sesame.sqlite
+      - key: SESAME_MASTER_KEY
+        generateValue: true
+      - key: SESAME_DEMO_PIN
+        sync: false
+      # IA gratuite (optionnel) : créer une clé sur https://console.groq.com puis la saisir dans Render.
+      - key: SESAME_AI_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: SESAME_AI_MODEL
+        value: llama-3.3-70b-versatile
+      - key: SESAME_AI_API_KEY
+        sync: false

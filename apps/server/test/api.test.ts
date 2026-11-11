@@ -202,3 +202,18 @@ describe('API — reçus Nostr vérifiables', () => {
     await a2.close();
   });
 });
+
+describe('API — en-têtes de sécurité', () => {
+  it('pose les en-têtes de sécurité sur toutes les réponses', async () => {
+    const r = await app.inject({ method: 'GET', url: '/healthz' });
+    expect(r.headers['x-content-type-options']).toBe('nosniff');
+    expect(r.headers['referrer-policy']).toBe('no-referrer');
+    expect(r.headers['x-frame-options']).toBe('DENY');
+    expect(String(r.headers['content-security-policy'])).toContain("default-src 'self'");
+    expect(String(r.headers['permissions-policy'])).toContain('camera=(self)');
+  });
+  it('ne met jamais en cache les réponses de l’API', async () => {
+    const r = await app.inject({ method: 'GET', url: '/api/rate' });
+    expect(r.headers['cache-control']).toBe('no-store');
+  });
+});

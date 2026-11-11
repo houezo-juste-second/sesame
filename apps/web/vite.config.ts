@@ -10,5 +10,7 @@ export default defineConfig({
   build: {
     target: 'es2020',
     cssCodeSplit: false,
+    // Pas de fichiers intégrés en data: (polices comprises) : compatible avec une CSP stricte.
+    assetsInlineLimit: 0,
   },
 });

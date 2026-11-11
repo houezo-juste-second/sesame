@@ -47,7 +47,15 @@ Développement : `npm run dev:server` et `npm run dev:web` (http://localhost:517
 
 ## 100 % gratuit
 
-Toutes les briques sont libres et gratuites. L'IA fonctionne **sans aucune clé** : une extraction heuristique hors ligne remplit la commande. En option, on peut brancher un modèle en offre gratuite (Groq, Google Gemini) ou local (Ollama) : voir `.env.example`. Le taux BTC/FCFA vient de l'API publique gratuite de mempool.space.
+Toutes les briques sont libres et gratuites, y compris le taux BTC/FCFA (API publique de mempool.space).
+
+**IA, en toute transparence :** par défaut, le remplissage automatique d'une commande utilise des **règles locales** (gratuites, hors ligne), pas un modèle d'IA. Avec une clé gratuite Groq, Sésame utilise **Llama 3.3 70B** (API compatible OpenAI), et revient aux règles locales en cas d'erreur. Les numéros de téléphone sont masqués avant tout envoi, et l'IA ne touche jamais au paiement. Voir `.env.example`.
+
+## Documentation
+
+- [Architecture et protocole](docs/ARCHITECTURE.md)
+- [Mise en ligne gratuite (Render ou Oracle Cloud)](docs/DEPLOIEMENT.md)
+- [Pitch, vidéo et questions du jury](docs/PITCH.md)
 
 ## Réseau Lightning local (à venir)
 

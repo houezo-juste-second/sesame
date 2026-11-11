@@ -79,6 +79,30 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       : false,
     bodyLimit: 16 * 1024,
   });
+  // En-têtes de sécurité sur toutes les réponses (sans dépendance supplémentaire).
+  const CSP = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'", // attributs style des composants
+    "img-src 'self' data:",              // QR codes générés en data:
+    "font-src 'self'",
+    "connect-src 'self' wss:",           // relais Nostr de la page de vérification
+    "manifest-src 'self'",
+    "worker-src 'self'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+  app.addHook('onSend', async (req, reply) => {
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('referrer-policy', 'no-referrer');
+    reply.header('x-frame-options', 'DENY');
+    reply.header('content-security-policy', CSP);
+    reply.header('permissions-policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
+    if (req.headers['x-forwarded-proto'] === 'https') reply.header('strict-transport-security', 'max-age=31536000');
+    if (req.url.startsWith('/api')) reply.header('cache-control', 'no-store');
+  });
+
   const releaseLimiter = new Limiter(5, 60_000);
   const loginLimiter = new Limiter(5, 60_000);
 

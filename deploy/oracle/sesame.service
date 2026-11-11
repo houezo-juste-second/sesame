@@ -1,0 +1,26 @@
+[Unit]
+Description=Sésame — séquestre Lightning non-custodial
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sesame
+Group=sesame
+WorkingDirectory=/opt/sesame
+EnvironmentFile=/etc/sesame.env
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=3
+
+# Durcissement
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/sesame /opt/sesame
+CapabilityBoundingSet=
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
