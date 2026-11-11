@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 import { serviceFeeXof } from '@sesame/core';
 import { api, ApiError, initials, local, SELLER_KEY, subscribe, xof, type OrderView } from '../api.js';
 import { navigate } from '../router.js';
-import { Plus, Sparkle, WhatsApp } from '../ui/icons.js';
+import { Logout, Plus, Sparkle, WhatsApp } from '../ui/icons.js';
 import { copyText, ErrorBox, Loading, SimBanner, Toast, TopBar, useToast, whatsappUrl } from '../ui/kit.js';
 
 const clientTokKey = (id: string) => `sesame:ctok:${id}`;
@@ -118,10 +118,10 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
       <header class="top">
         <div class="avatar" style="width:44px;height:44px;font-size:16px" aria-hidden="true">{initials(data.shop.name)}</div>
         <div class="grow">
-          <div class="small muted">Identifiant : {data.shop.slug}</div>
           <h2>{data.shop.name}</h2>
+          <div class="tiny muted" style="overflow-wrap:anywhere">Identifiant : {data.shop.slug}</div>
         </div>
-        <button class="btn ghost" style="width:auto;height:40px;font-size:13px" onClick={onLogout}>Déconnexion</button>
+        <button class="icon-btn" aria-label="Se déconnecter" title="Se déconnecter" onClick={onLogout}><Logout /></button>
       </header>
       <main class="content fade-in">
         <section class="card deep stack" style="gap:14px">
@@ -129,10 +129,10 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
             <div class="small" style="color:#C9C7F2">Encaissé (commandes livrées)</div>
             <div class="big-amount" style="font-size:30px">{xof(data.summary.releasedXof)}</div>
           </div>
-          <div class="row" style="gap:8px">
+          <div class="stats">
             <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b>{data.summary.releasedCount}</b><span class="tiny" style="color:#C9C7F2">livrées</span></div>
             <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b style="color:#F5C766">{data.summary.inDeliveryCount}</b><span class="tiny" style="color:#C9C7F2">en livraison</span></div>
-            <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b>{new Intl.NumberFormat('fr-FR').format(data.summary.lockedXof)}</b><span class="tiny" style="color:#C9C7F2">FCFA bloqués</span></div>
+            <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b>{new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 0 }).format(data.summary.lockedXof)}</b><span class="tiny" style="color:#C9C7F2">FCFA bloqués</span></div>
           </div>
         </section>
         <a class="card soft row small" href={`/verify/${data.shop.slug}`} target="_blank" rel="noopener" style="text-decoration:none;color:var(--indigo-ink)">

@@ -83,7 +83,7 @@ export function Verify({ slug }: { slug: string }) {
 
         <section class="card deep stack" style="gap:14px">
           <div class="row" style="gap:8px"><Shield /><strong>Réputation vérifiée dans votre navigateur</strong></div>
-          <div class="row" style="gap:8px">
+          <div class="stats">
             <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b style="color:#8FE3AE">{released}</b><span class="tiny" style="color:#C9C7F2">livraisons prouvées</span></div>
             <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b>{refunded}</b><span class="tiny" style="color:#C9C7F2">remboursements</span></div>
             {invalid > 0 && <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b style="color:#F5C766">{invalid}</b><span class="tiny" style="color:#C9C7F2">reçus rejetés</span></div>}

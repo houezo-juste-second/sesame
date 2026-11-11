@@ -117,7 +117,7 @@ function OrderScreen({ order, busy, onPay }: { order: OrderView; busy: boolean; 
       <header class="top"><Brand /></header>
       <main class="content fade-in">
         <ShopHeader order={order} />
-        <div class="row" style="gap:8px">
+        <div class="stats">
           <div class="stat"><b style="color:var(--green)">{rep.released}</b><span class="tiny muted">livraisons réussies</span></div>
           <div class="stat"><b>{rep.refunded}</b><span class="tiny muted">remboursements</span></div>
           <a class="stat" href={`/verify/${order.shopSlug}`} target="_blank" rel="noopener" style="text-decoration:none;display:flex;flex-direction:column;justify-content:center">
@@ -161,7 +161,7 @@ function PayScreen({ order, busy, onDemoPay, onCopy }: { order: OrderView; busy:
       <TopBar subtitle={order.shopName} title={`Payer ${xof(order.totalXof)}`} />
       <main class="content fade-in">
         <section class="card stack" style="align-items:center;text-align:center">
-          <div class="qr-box" style="width:260px;height:260px"><Qr text={`lightning:${invoice.toUpperCase()}`} label="QR de paiement Lightning" /></div>
+          <div class="qr-box large"><Qr text={`lightning:${invoice.toUpperCase()}`} label="QR de paiement Lightning" /></div>
           <div class="big-amount" style="font-size:20px">{sats(order.amountSat)}</div>
           <div class="small muted">Scannez avec votre wallet (Wallet of Satoshi, Phoenix, Blink…). La facture expire dans {timeLeft(order.invoiceExpiresAt, now)}.</div>
         </section>
@@ -184,7 +184,7 @@ function SesameScreen({ order, preimage, busy, onReceived, onCopy }: {
   const [confirming, setConfirming] = useState(false);
   return (
     <>
-      <TopBar subtitle={order.shopName} title={`${order.itemLabel.slice(0, 28)} · ${xof(order.totalXof)}`} />
+      <TopBar subtitle={`${order.shopName} · ${xof(order.totalXof)}`} title={order.itemLabel} />
       <main class="content fade-in">
         <section class="card ok row">
           <span class="check-circle"><Check /></span>

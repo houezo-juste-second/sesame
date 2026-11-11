@@ -31,6 +31,8 @@ const STATUS: Partial<Record<EscrowErrorCode, number>> = {
   SETTLE_PENDING: 202,
 };
 
+const SSE_MAX_MS = 60_000;
+
 /** Limiteur simple à fenêtre glissante (mémoire). */
 class Limiter {
   private readonly hits = new Map<string, number[]>();
@@ -165,10 +167,19 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     send({ type: 'SNAPSHOT', snapshot: first });
     const unsubscribe = subscribe((e) => send({ type: e.type, orderId: e.orderId, state: e.state, stateLabel: STATE_LABEL_FR[e.state], at: e.at }));
     const ping = setInterval(() => raw.write(': ping\n\n'), 25_000);
-    req.raw.on('close', () => {
+    // Recyclage : le flux est fermé au bout d'une minute, le client se reconnecte.
+    // Une connexion orpheline (page quittée, réseau mobile coupé) ne bloque donc jamais longtemps.
+    const recycle = setTimeout(() => raw.end(), SSE_MAX_MS);
+    let closed = false;
+    const cleanup = () => {
+      if (closed) return;
+      closed = true;
       clearInterval(ping);
+      clearTimeout(recycle);
       unsubscribe();
-    });
+    };
+    req.raw.on('close', cleanup);
+    raw.on('close', cleanup);
   }
 
   // ---------------------------------------------------------------- erreurs

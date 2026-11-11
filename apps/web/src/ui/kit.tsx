@@ -14,6 +14,18 @@ export function Brand() {
 }
 
 export function TopBar({ back, title, subtitle, right }: { back?: string; title?: string; subtitle?: string; right?: ComponentChildren }) {
+  // Sans bouton retour mais avec un titre : logo au-dessus, titre en dessous (lisible sur petits écrans).
+  if (!back && (title || subtitle)) {
+    return (
+      <header class="top stacked">
+        <div class="row"><Brand /><span class="grow" />{right}</div>
+        <div>
+          {subtitle && <div class="tiny muted">{subtitle}</div>}
+          {title && <h2>{title}</h2>}
+        </div>
+      </header>
+    );
+  }
   return (
     <header class="top">
       {back ? (

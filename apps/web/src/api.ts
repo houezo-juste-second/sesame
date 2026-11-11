@@ -96,6 +96,11 @@ export function subscribe(path: string, token: string, onEvent: (e: { type: stri
       controller = new AbortController();
       try {
         const res = await fetch(path, { headers: { authorization: `Bearer ${token}` }, signal: controller.signal });
+        // Lien invalide ou accès refusé : inutile de réessayer en boucle.
+        if ([401, 403, 404].includes(res.status)) {
+          stopped = true;
+          return;
+        }
         if (!res.ok || !res.body) throw new Error('SSE');
         const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
         let buffer = '';
@@ -120,10 +125,14 @@ export function subscribe(path: string, token: string, onEvent: (e: { type: stri
     }
   };
   void run();
-  return () => {
+  const stop = () => {
     stopped = true;
     controller?.abort();
+    removeEventListener('pagehide', stop);
   };
+  // En quittant la page, on libère la connexion : un navigateur n'en autorise que 6 par site.
+  addEventListener('pagehide', stop);
+  return stop;
 }
 
 // ------------------------------------------------------------ format
