@@ -19,22 +19,33 @@ Sésame est un séquestre Lightning **non-custodial** pour le commerce sur Whats
 | Composant | État |
 |---|---|
 | `packages/core` : sésame (P/H), montants FCFA ↔ msat, machine à états | ✅ testé |
-| `apps/server/escrow` : moteur de séquestre (verrouillage, libération, remboursement, répartition, reprise) | ✅ testé (wallet simulé) |
-| `apps/server/audit` : journal d'audit chaîné par hachage | ✅ testé |
-| `infra/` : réseau regtest Docker (bitcoind + 4 nœuds LND) | 🟡 écrit, à valider |
-| Adaptateurs LND / NWC, API HTTP, applications web, Nostr, IA | ⏳ à venir |
+| `apps/server` : moteur de séquestre, API HTTP, temps réel (SSE), journal d'audit | ✅ testé |
+| `apps/server/ai` : création de commande depuis une conversation WhatsApp (gratuit, hors ligne) | ✅ testé |
+| `apps/web` : application web mobile (PWA) — client, livreur, vendeuse | ✅ parcours complet vérifié dans un navigateur |
+| Paiements | 🟡 **simulés** pour l'instant (bandeau « DÉMO » à l'écran) |
+| `infra/` : réseau Lightning regtest (bitcoind + 4 nœuds LND) | 🟡 écrit, à valider |
+| Adaptateurs LND / NWC (vrais paiements), reçus Nostr | ⏳ à venir |
 
-## Développement
+## Lancer la démo (2 minutes, sans Docker)
 
-Prérequis : Node.js 22+ ; Docker pour le réseau regtest.
+Prérequis : Node.js 22+.
 
 ```bash
 npm install
-npm test            # tests unitaires
-npm run typecheck   # vérification TypeScript stricte
+npm run build     # compile l'application web
+npm start         # http://127.0.0.1:8080 — mode simulation
 ```
 
-Réseau Lightning local :
+- Espace vendeuse : http://127.0.0.1:8080/v — boutique de démo `pagnes-de-fifame`, PIN `2026`.
+- Créez une commande, ouvrez le lien client, payez avec le « wallet de démo », assignez un livreur, puis libérez avec le sésame.
+
+Développement : `npm run dev:server` et `npm run dev:web` (http://localhost:5173), `npm test`, `npm run typecheck`.
+
+## 100 % gratuit
+
+Toutes les briques sont libres et gratuites. L'IA fonctionne **sans aucune clé** : une extraction heuristique hors ligne remplit la commande. En option, on peut brancher un modèle en offre gratuite (Groq, Google Gemini) ou local (Ollama) : voir `.env.example`. Le taux BTC/FCFA vient de l'API publique gratuite de mempool.space.
+
+## Réseau Lightning local (à venir)
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d

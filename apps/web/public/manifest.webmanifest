@@ -1,0 +1,13 @@
+{
+  "name": "Sésame — paiement à la livraison",
+  "short_name": "Sésame",
+  "lang": "fr",
+  "start_url": "/v",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F6FA",
+  "theme_color": "#3730A3",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

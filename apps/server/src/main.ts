@@ -27,7 +27,8 @@ ctx.shops.create({ name: 'Pagnes de Fifamè', city: 'Cotonou', pinHash: await ha
 
 const webDist = path.resolve(here, '../../web/dist');
 if (existsSync(webDist)) {
-  await app.register(fastifyStatic, { root: webDist, wildcard: false });
+  // wildcard (par défaut) : les fichiers d'une nouvelle compilation sont servis sans redémarrage.
+  await app.register(fastifyStatic, { root: webDist });
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith('/api')) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Introuvable.' });
     return reply.sendFile('index.html');
