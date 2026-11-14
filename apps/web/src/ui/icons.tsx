@@ -44,3 +44,9 @@ export const Logout = ({ size = 18, color = 'currentColor' }: P) => (
 export const Copy = ({ size = 18, color = 'currentColor' }: P) => (
   <svg {...base(size, color)} stroke-width={2}><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
 );
+export const KeyHole = ({ size = 18, color = '#F3AA3C' }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9.5" r="4.5" fill={color} /><path d="M9.6 12.5h4.8L15.6 21H8.4z" fill={color} /></svg>
+);
+export const Chevron = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg {...base(size, color)}><path d="M9 6l6 6-6 6" /></svg>
+);

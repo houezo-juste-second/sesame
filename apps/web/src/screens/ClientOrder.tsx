@@ -99,55 +99,53 @@ export function ClientOrder({ id }: { id: string }) {
 }
 
 function ShopHeader({ order }: { order: OrderView }) {
+  const rep = order.reputation ?? { released: 0, refunded: 0 };
   return (
-    <section class="row">
+    <section class="row" style="gap:12px">
       <div class="avatar" aria-hidden="true">{initials(order.shopName)}</div>
       <div class="grow">
         <h2>{order.shopName}</h2>
-        <div class="small muted">{order.shopCity} · vendeuse sur Sésame</div>
+        <div class="small muted">
+          {order.shopCity}, {rep.released === 0 ? 'nouvelle sur Sésame' : `${rep.released} livraison${rep.released > 1 ? 's' : ''} prouvée${rep.released > 1 ? 's' : ''}`}
+        </div>
       </div>
+      <a class="chip-link" href={`/verify/${order.shopSlug}`} target="_blank" rel="noopener">Vérifier</a>
     </section>
   );
 }
 
 function OrderScreen({ order, busy, onPay }: { order: OrderView; busy: boolean; onPay: () => void }) {
-  const rep = order.reputation ?? { released: 0, refunded: 0 };
   return (
     <>
       <header class="top"><Brand /></header>
-      <main class="content fade-in">
+      <main class="content fade-in" style="gap:20px">
         <ShopHeader order={order} />
-        <div class="stats">
-          <div class="stat"><b style="color:var(--green)">{rep.released}</b><span class="tiny muted">livraisons réussies</span></div>
-          <div class="stat"><b>{rep.refunded}</b><span class="tiny muted">remboursements</span></div>
-          <a class="stat" href={`/verify/${order.shopSlug}`} target="_blank" rel="noopener" style="text-decoration:none;display:flex;flex-direction:column;justify-content:center">
-            <span class="tiny" style="font-weight:600;color:var(--indigo)">Vérifier</span>
-            <span class="tiny muted">les reçus</span>
-          </a>
-        </div>
-        <section class="card stack">
-          <h2 style="font-size:16px;line-height:1.3">{order.itemLabel}</h2>
-          <div class="between small"><span class="muted">Article</span><span>{xof(order.itemXof)}</span></div>
-          <div class="between small"><span class="muted">Livraison</span><span>{xof(order.deliveryFeeXof)}</span></div>
-          <div class="divider" />
-          <div class="between">
-            <span style="font-weight:600">Total</span>
-            <span style="text-align:right"><span class="big-amount">{xof(order.totalXof)}</span><br /><span class="tiny muted">≈ {sats(order.amountSat)}</span></span>
+        <section class="ticket" aria-label="Votre commande">
+          <div class="ticket-part stack" style="gap:8px">
+            <span class="tiny muted">Votre commande</span>
+            <h2 style="font-size:20px">{order.itemLabel}</h2>
+            <div class="between small" style="margin-top:6px"><span class="muted">Article</span><span>{xof(order.itemXof)}</span></div>
+            <div class="between small"><span class="muted">Livraison</span><span>{xof(order.deliveryFeeXof)}</span></div>
+          </div>
+          <div class="ticket-tear" aria-hidden="true" />
+          <div class="ticket-part between" style="align-items:flex-end">
+            <span style="font-weight:700">Total</span>
+            <span><span class="ticket-total">{xof(order.totalXof)}</span><br /><span class="tiny muted">soit {sats(order.amountSat)}</span></span>
           </div>
         </section>
-        <section class="card soft row" style="align-items:flex-start;gap:12px">
-          <span class="brand-mark" style="width:36px;height:36px;border-radius:10px"><Shield /></span>
+        <section class="trust">
+          <span class="trust-icon"><Shield size={17} /></span>
           <div>
-            <div style="font-weight:600;font-size:14px;color:var(--indigo-ink)">Votre argent est bloqué jusqu'à la livraison.</div>
-            <div class="small" style="color:#3F3D73;margin-top:3px;line-height:1.45">
-              Sans livraison dans les {order.deliveryHours} h suivant le paiement, vous êtes remboursé automatiquement. Personne ne peut le prendre avant.
-            </div>
+            <h3>Votre argent reste bloqué jusqu'à la livraison</h3>
+            <p class="small muted" style="margin-top:3px">
+              Personne ne peut le prendre avant. Sans livraison dans les {order.deliveryHours} h suivant le paiement, vous êtes remboursé automatiquement.
+            </p>
           </div>
         </section>
       </main>
       <footer class="bottom">
-        <button class="btn primary" disabled={busy} onClick={onPay}><Lock /> Payer {xof(order.totalXof)} en sécurité</button>
-        <div class="tiny muted center">Avec n'importe quel wallet Lightning</div>
+        <button class="btn primary" disabled={busy} onClick={onPay}><Lock /> Payer {xof(order.totalXof)}</button>
+        <div class="tiny muted center">Avec n'importe quel wallet Bitcoin Lightning</div>
       </footer>
     </>
   );
@@ -182,41 +180,48 @@ function SesameScreen({ order, preimage, busy, onReceived, onCopy }: {
   const now = useNow();
   const [shown, setShown] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const enRoute = order.state === 'OUT_FOR_DELIVERY';
   return (
     <>
-      <TopBar subtitle={`${order.shopName} · ${xof(order.totalXof)}`} title={order.itemLabel} />
+      <TopBar subtitle={`${order.shopName}, ${xof(order.totalXof)}`} title={order.itemLabel} />
       <main class="content fade-in">
-        <section class="card ok row">
+        <section class="card ok row" style="gap:12px">
           <span class="check-circle"><Check /></span>
           <div>
-            <div style="font-weight:600;font-size:14px;color:var(--green-ink)">Paiement sécurisé</div>
-            <div class="tiny" style="color:#2F6B45">{order.state === 'OUT_FOR_DELIVERY' ? 'Votre colis est en route.' : 'Votre argent est bloqué. La vendeuse prépare le colis.'}</div>
+            <h3>Paiement sécurisé</h3>
+            <div class="small">{enRoute ? 'Votre colis est en route.' : 'Votre argent est bloqué. La vendeuse prépare le colis.'}</div>
           </div>
         </section>
 
         {preimage ? (
-          <section class="card deep stack" style="align-items:center;gap:14px">
-            <div class="row" style="align-self:stretch;gap:8px">
-              <Key /><h2 style="font-size:16px">Mon sésame</h2>
-              <span class="tiny" style="margin-left:auto;color:#C9C7F2">n° {order.id.slice(0, 4).toUpperCase()}</span>
+          <section class="ticket sesame" aria-label="Mon sésame">
+            <div class="ticket-part stack" style="align-items:center;gap:14px">
+              <div class="row" style="align-self:stretch">
+                <span class="veil-icon" style="width:34px;height:34px"><Key size={17} color="#F3AA3C" /></span>
+                <h2 class="grow">Mon sésame</h2>
+                <span class="sesame-code">n° {order.id.slice(0, 4).toUpperCase()}</span>
+              </div>
+              <div class="qr-box">
+                <Qr text={encodeSesameQr(order.id, preimage)} label="QR de votre sésame" />
+                {!shown && (
+                  <div class="qr-veil">
+                    <span class="veil-icon"><Eye color="#F3AA3C" /></span>
+                    <strong class="small">Sésame masqué</strong>
+                    <span class="tiny">À afficher seulement devant le livreur</span>
+                  </div>
+                )}
+              </div>
+              <button class="btn ink" aria-pressed={shown} onClick={() => setShown(!shown)}>
+                {shown ? 'Masquer mon sésame' : 'Afficher mon sésame'}
+              </button>
             </div>
-            <div class="qr-box">
-              <Qr text={encodeSesameQr(order.id, preimage)} label="QR de votre sésame" />
-              {!shown && (
-                <div class="qr-veil">
-                  <span class="brand-mark" style="width:44px;height:44px;border-radius:50%;background:var(--indigo-deep)"><Eye /></span>
-                  <strong class="small">Sésame masqué</strong>
-                  <span class="tiny muted">À afficher seulement devant le livreur</span>
-                </div>
-              )}
+            <div class="ticket-tear" aria-hidden="true" />
+            <div class="ticket-part stack" style="gap:10px;padding-top:6px">
+              <p class="small center" style="line-height:1.5">
+                Montrez-le <strong>seulement après avoir vérifié votre colis</strong>. Le livreur le scanne et la vendeuse est payée.
+              </p>
+              <button class="btn quiet" style="color:var(--saffron-ink)" onClick={onCopy}>Copier mon sésame (sauvegarde)</button>
             </div>
-            <button class="btn saffron" style="height:48px" aria-pressed={shown} onClick={() => setShown(!shown)}>
-              {shown ? 'Masquer mon sésame' : 'Afficher mon sésame'}
-            </button>
-            <div class="small center" style="color:#DCDAF7;line-height:1.5;max-width:300px">
-              Ne le montrez <strong style="color:#fff">qu'après avoir vérifié votre colis</strong>. Le livreur le scanne, et la vendeuse est payée.
-            </div>
-            <button class="btn ghost" style="color:#fff;height:44px" onClick={onCopy}>Copier mon sésame (sauvegarde)</button>
           </section>
         ) : (
           <div class="card warn small" role="note">
@@ -225,11 +230,11 @@ function SesameScreen({ order, preimage, busy, onReceived, onCopy }: {
           </div>
         )}
 
-        <section class="card row" style="gap:12px">
-          <Clock />
+        <section class="row" style="gap:12px;padding:2px 4px">
+          <Clock color="var(--muted)" />
           <div class="grow">
-            <div style="font-weight:600;font-size:14px">Livraison attendue avant {clock(order.releaseDeadlineAt)}</div>
-            <div class="tiny muted">Sinon : remboursement automatique dans {timeLeft(order.releaseDeadlineAt, now)}</div>
+            <h3>Livraison attendue avant {clock(order.releaseDeadlineAt)}</h3>
+            <div class="small muted">Sinon, remboursement automatique dans {timeLeft(order.releaseDeadlineAt, now)}</div>
           </div>
         </section>
       </main>
@@ -244,7 +249,7 @@ function SesameScreen({ order, preimage, busy, onReceived, onCopy }: {
           ) : (
             <>
               <button class="btn outline" onClick={() => setConfirming(true)}>J'ai reçu mon colis</button>
-              <div class="tiny muted center">À utiliser si le livreur ne peut pas scanner</div>
+              <div class="tiny muted center">Si le livreur ne peut pas scanner votre sésame</div>
             </>
           )}
         </footer>
@@ -268,7 +273,7 @@ function DoneScreen({ order }: { order: OrderView }) {
         </div>
         <h1>{content.title}</h1>
         <p class="muted" style="margin:0;line-height:1.5">{content.text}</p>
-        <div class="card stack small" style="text-align:left">
+        <div class="card stack small" style="text-align:left;align-self:stretch">
           <div class="between"><span class="muted">Commande</span><span>{order.itemLabel}</span></div>
           <div class="between"><span class="muted">Montant</span><span>{xof(order.totalXof)}</span></div>
           <div class="between"><span class="muted">Boutique</span><span>{order.shopName}</span></div>

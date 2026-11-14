@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 import { serviceFeeXof } from '@sesame/core';
 import { api, ApiError, initials, local, SELLER_KEY, subscribe, xof, type OrderView } from '../api.js';
 import { navigate } from '../router.js';
-import { Logout, Plus, Sparkle, WhatsApp } from '../ui/icons.js';
+import { Chevron, Logout, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
 import { copyText, ErrorBox, Loading, SimBanner, Toast, TopBar, useToast, whatsappUrl } from '../ui/kit.js';
 
 const clientTokKey = (id: string) => `sesame:ctok:${id}`;
@@ -53,8 +53,10 @@ function SellerAuth({ onToken }: { onToken: (t: string) => void }) {
     <div class="screen">
       <TopBar />
       <main class="content fade-in">
-        <h1>Espace vendeuse</h1>
-        <p class="muted" style="margin:0">Encaissez avant la livraison, sans risque pour vos clients.</p>
+        <div class="stack" style="gap:8px;padding-top:6px">
+          <h1>Espace vendeuse</h1>
+          <p class="muted">Encaissez avant la livraison, sans risque pour vos clients.</p>
+        </div>
         <div class="segmented" role="group" aria-label="Choix">
           <button type="button" aria-pressed={mode === 'login'} onClick={() => setMode('login')}>Se connecter</button>
           <button type="button" aria-pressed={mode === 'create'} onClick={() => setMode('create')}>Créer ma boutique</button>
@@ -112,46 +114,56 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
   if (!data) return <div class="screen"><TopBar />{error ? <div class="content"><ErrorBox message={error} /></div> : <Loading />}</div>;
   const simulation = data.orders[0]?.simulation ?? false;
 
+  const compact = new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 0 });
+  const time = (d: string) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
   return (
     <div class="screen">
       <SimBanner show={simulation} />
-      <header class="top">
-        <div class="avatar" style="width:44px;height:44px;font-size:16px" aria-hidden="true">{initials(data.shop.name)}</div>
-        <div class="grow">
-          <h2>{data.shop.name}</h2>
-          <div class="tiny muted" style="overflow-wrap:anywhere">Identifiant : {data.shop.slug}</div>
-        </div>
-        <button class="icon-btn" aria-label="Se déconnecter" title="Se déconnecter" onClick={onLogout}><Logout /></button>
-      </header>
-      <main class="content fade-in">
-        <section class="card deep stack" style="gap:14px">
-          <div>
-            <div class="small" style="color:#C9C7F2">Encaissé (commandes livrées)</div>
-            <div class="big-amount" style="font-size:30px">{xof(data.summary.releasedXof)}</div>
+      <main class="content fade-in" style="padding-top:max(14px, env(safe-area-inset-top))">
+        <section class="band">
+          <div class="row" style="gap:12px">
+            <div class="avatar" style="width:44px;height:44px;font-size:16px" aria-hidden="true">{initials(data.shop.name)}</div>
+            <div class="grow">
+              <h2 style="overflow-wrap:anywhere">{data.shop.name}</h2>
+              <div class="tiny" style="color:#C7CBF0;overflow-wrap:anywhere">Identifiant : {data.shop.slug}</div>
+            </div>
+            <button class="icon-btn" aria-label="Se déconnecter" title="Se déconnecter" onClick={onLogout}><Logout /></button>
           </div>
-          <div class="stats">
-            <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b>{data.summary.releasedCount}</b><span class="tiny" style="color:#C9C7F2">livrées</span></div>
-            <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b style="color:#F5C766">{data.summary.inDeliveryCount}</b><span class="tiny" style="color:#C9C7F2">en livraison</span></div>
-            <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b>{new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 0 }).format(data.summary.lockedXof)}</b><span class="tiny" style="color:#C9C7F2">FCFA bloqués</span></div>
+          <div>
+            <div class="label-on-dark">Encaissé sur les commandes livrées</div>
+            <div class="band-amount" style="margin-top:6px">{xof(data.summary.releasedXof)}</div>
+          </div>
+          <div class="figures">
+            <div><b>{data.summary.releasedCount}</b><span>livrées</span></div>
+            <div><b style="color:var(--saffron)">{data.summary.inDeliveryCount}</b><span>en livraison</span></div>
+            <div><b>{compact.format(data.summary.lockedXof)}</b><span>FCFA bloqués pour vous</span></div>
           </div>
         </section>
-        <a class="card soft row small" href={`/verify/${data.shop.slug}`} target="_blank" rel="noopener" style="text-decoration:none;color:var(--indigo-ink)">
-          <span class="grow"><strong>Ma réputation publique</strong> — reçus signés et vérifiables, à partager avec vos clients</span>
-          <span aria-hidden="true">→</span>
+
+        <a class="link-row" href={`/verify/${data.shop.slug}`} target="_blank" rel="noopener">
+          <span class="link-icon"><Shield size={18} color="var(--indigo)" /></span>
+          <span class="grow">
+            <strong style="display:block;font-size:15px">Ma réputation publique</strong>
+            <span class="tiny muted">Des reçus vérifiables, à partager avec vos clients</span>
+          </span>
+          <span class="chev"><Chevron /></span>
         </a>
-        <h2 style="font-size:16px">Commandes</h2>
-        {data.orders.length === 0 && <div class="card small muted">Aucune commande pour l'instant. Créez-en une et envoyez le lien à votre client sur WhatsApp.</div>}
-        <div class="stack" style="gap:8px">
+
+        <h2 class="section-title">Commandes</h2>
+        <div class="list">
+          {data.orders.length === 0 && (
+            <div class="list-empty">Aucune commande pour l'instant. Créez-en une, puis envoyez le lien à votre client sur WhatsApp.</div>
+          )}
           {data.orders.map((o) => (
-            <a key={o.id} class="card row" style="text-decoration:none;color:inherit;padding:12px 14px" href={`/v/o/${o.id}`}
-              onClick={(e) => { e.preventDefault(); navigate(`/v/o/${o.id}`); }}>
-              <div class="grow" style="min-width:0">
-                <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{o.itemLabel}</div>
-                <div class="tiny muted">{new Date(o.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {o.courierAssigned ? 'livreur assigné' : 'sans livreur'}</div>
+            <a key={o.id} class="list-row" href={`/v/o/${o.id}`} onClick={(e) => { e.preventDefault(); navigate(`/v/o/${o.id}`); }}>
+              <div class="grow">
+                <div class="title">{o.itemLabel}</div>
+                <div class="tiny muted">{time(o.createdAt)}, {o.courierAssigned ? 'livreur assigné' : 'sans livreur'}</div>
               </div>
-              <div style="text-align:right">
-                <div style="font-weight:600;font-size:14px">{new Intl.NumberFormat('fr-FR').format(o.totalXof)}</div>
-                <span class={`pill ${o.state}`} style="margin-top:3px">{o.stateLabel}</span>
+              <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+                <span class="amount">{new Intl.NumberFormat('fr-FR').format(o.totalXof)}</span>
+                <span class={`status ${o.state}`}>{o.stateLabel}</span>
               </div>
             </a>
           ))}
@@ -197,7 +209,7 @@ export function SellerNewOrder() {
       const labels: Record<string, string> = { itemLabel: "l'article", amountXof: 'le prix', deliveryFeeXof: 'les frais de livraison' };
       setAiNote(r.missingFields.length
         ? `À compléter : ${r.missingFields.map((f) => labels[f]).join(', ')}. Vérifiez avant de créer.`
-        : 'Champs remplis automatiquement — vérifiez avant de créer.');
+        : 'Champs remplis automatiquement. Vérifiez-les avant de créer la commande.');
     } catch (e) {
       setAiNote(e instanceof ApiError ? e.message : 'Extraction impossible, remplissez le formulaire.');
     } finally {
@@ -225,14 +237,13 @@ export function SellerNewOrder() {
     <div class="screen">
       <TopBar back="/v" title="Nouvelle commande" />
       <form class="content fade-in" onSubmit={create}>
-        <section class="card stack">
+        <section class="ai-box">
           <div class="row" style="gap:8px">
-            <Sparkle /><strong class="small">Créer depuis la conversation</strong>
-            <span class="pill FUNDS_LOCKED" style="margin-left:auto">IA</span>
+            <Sparkle color="var(--indigo)" /><h3 style="color:var(--indigo-ink)">Remplir depuis la conversation</h3>
           </div>
           <label class="hint" for="chat">Collez les messages WhatsApp du client. Les numéros de téléphone sont masqués automatiquement.</label>
           <textarea id="chat" class="input" value={chat} maxLength={4000} onInput={(e) => setChat((e.target as HTMLTextAreaElement).value)}
-            placeholder="« Je prends les 2 pagnes bleus à 18 000, livraison à Fidjrossè 1 500 »" />
+            placeholder="Je prends les 2 pagnes bleus à 18 000, livraison à Fidjrossè 1 500" />
           <button type="button" class="btn ghost" disabled={busy || chat.trim().length < 5} onClick={fill}>Remplir automatiquement</button>
           {aiNote && <div class="hint" role="status">{aiNote}</div>}
         </section>
@@ -256,11 +267,12 @@ export function SellerNewOrder() {
           </div>
         </div>
         {item > 0 && (
-          <section class="card stack small" style="gap:6px">
+          <section class="card stack small" style="gap:8px">
             <div class="between"><span class="muted">Le client paie</span><strong>{xof(item + delivery)}</strong></div>
             {delivery > 0 && <div class="between"><span class="muted">Part du livreur</span><span>− {xof(delivery)}</span></div>}
             <div class="between"><span class="muted">Frais Sésame (1 %, seulement si livré)</span><span>− {xof(fee)}</span></div>
-            <div class="between"><span class="muted">Vous recevez</span><strong style="color:var(--green)">{xof(item - fee)}</strong></div>
+            <div class="divider" />
+            <div class="between"><span style="font-weight:700">Vous recevez</span><strong class="big-amount" style="color:var(--leaf)">{xof(item - fee)}</strong></div>
           </section>
         )}
         {error && <ErrorBox message={error} />}
@@ -327,12 +339,13 @@ export function SellerOrder({ id }: { id: string }) {
           <div class="between"><span class="muted">Le client paie</span><strong>{xof(order.totalXof)}</strong></div>
           <div class="between"><span class="muted">Frais Sésame</span><span>− {xof(order.feeXof ?? 0)}</span></div>
           {order.courierAssigned && <div class="between"><span class="muted">Livreur ({order.courierAddress})</span><span>− {xof(order.deliveryFeeXof)}</span></div>}
-          <div class="between"><span class="muted">Vous recevez à la livraison</span><strong style="color:var(--green)">{xof(order.netXof ?? 0)}</strong></div>
+          <div class="divider" />
+          <div class="between"><span style="font-weight:700">Vous recevez à la livraison</span><strong class="big-amount" style="color:var(--leaf)">{xof(order.netXof ?? 0)}</strong></div>
         </section>
 
         {clientLink && (order.state === 'DRAFT' || order.state === 'AWAITING_PAYMENT') && (
           <section class="card stack">
-            <strong class="small">1. Envoyez le lien de paiement au client</strong>
+            <h3>Envoyez le lien de paiement au client</h3>
             <a class="btn success" href={whatsappUrl(clientMsg)} target="_blank" rel="noopener noreferrer"><WhatsApp /> Envoyer sur WhatsApp</a>
             <button class="btn ghost" onClick={async () => showToast((await copyText(clientLink)) ? 'Lien copié' : 'Copie impossible')}>Copier le lien</button>
           </section>
@@ -340,7 +353,7 @@ export function SellerOrder({ id }: { id: string }) {
 
         {order.state === 'FUNDS_LOCKED' && (
           <section class="card stack">
-            <strong class="small">Paiement sécurisé ✓ — confiez le colis à un livreur</strong>
+            <h3>Paiement sécurisé. Confiez le colis à un livreur.</h3>
             <div class="field">
               <label for="ln">Adresse Lightning du livreur (pour lui verser sa course)</label>
               <input id="ln" class="input" value={address} onInput={(e) => setAddress((e.target as HTMLInputElement).value)} placeholder="moussa@walletofsatoshi.com" autocomplete="off" />
@@ -355,7 +368,7 @@ export function SellerOrder({ id }: { id: string }) {
 
         {courierLink && order.state === 'OUT_FOR_DELIVERY' && (
           <section class="card stack">
-            <strong class="small">Envoyez sa mission au livreur</strong>
+            <h3>Envoyez sa mission au livreur</h3>
             <a class="btn success" href={whatsappUrl(courierMsg)} target="_blank" rel="noopener noreferrer"><WhatsApp /> Envoyer au livreur</a>
             <button class="btn ghost" onClick={async () => showToast((await copyText(courierLink)) ? 'Lien copié' : 'Copie impossible')}>Copier le lien</button>
           </section>
@@ -372,7 +385,7 @@ export function SellerOrder({ id }: { id: string }) {
             <button class="btn ghost" onClick={() => setConfirmCancel(false)}>Non</button>
           </section>
         ) : (
-          <button class="btn ghost" onClick={() => setConfirmCancel(true)}>Annuler la commande (rupture de stock…)</button>
+          <button class="btn quiet" onClick={() => setConfirmCancel(true)}>Annuler la commande et rembourser le client</button>
         ))}
         {error && <ErrorBox message={error} />}
       </main>

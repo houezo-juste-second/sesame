@@ -1,13 +1,13 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import QRCode from 'qrcode';
-import { Back, Lock } from './icons.js';
+import { Back, KeyHole } from './icons.js';
 import { navigate } from '../router.js';
 
 export function Brand() {
   return (
     <a class="brand" href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>
-      <span class="brand-mark"><Lock size={16} /></span>
+      <span class="brand-mark"><KeyHole size={19} /></span>
       Sésame
     </a>
   );
@@ -44,13 +44,13 @@ export function TopBar({ back, title, subtitle, right }: { back?: string; title?
 
 export function SimBanner({ show }: { show: boolean }) {
   if (!show) return null;
-  return <div class="banner-sim" role="note">DÉMO — paiements simulés, aucun argent réel</div>;
+  return <div class="banner-sim" role="note">Démonstration : paiements simulés, aucun argent réel</div>;
 }
 
 export function Qr({ text, label }: { text: string; label: string }) {
   const [src, setSrc] = useState('');
   useEffect(() => {
-    QRCode.toDataURL(text, { margin: 0, width: 420, errorCorrectionLevel: 'M', color: { dark: '#12142B', light: '#FFFFFF' } })
+    QRCode.toDataURL(text, { margin: 0, width: 420, errorCorrectionLevel: 'M', color: { dark: '#161936', light: '#FFFFFF' } })
       .then(setSrc)
       .catch(() => setSrc(''));
   }, [text]);

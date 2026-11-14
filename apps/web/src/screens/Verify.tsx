@@ -77,16 +77,16 @@ export function Verify({ slug }: { slug: string }) {
           <div class="avatar" aria-hidden="true">{initials(data.shopName)}</div>
           <div class="grow">
             <h2>{data.shopName}</h2>
-            <div class="small muted">{data.city} · sur Sésame depuis {new Date(data.since).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</div>
+            <div class="small muted">{data.city}, sur Sésame depuis {new Date(data.since).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</div>
           </div>
         </section>
 
-        <section class="card deep stack" style="gap:14px">
-          <div class="row" style="gap:8px"><Shield /><strong>Réputation vérifiée dans votre navigateur</strong></div>
-          <div class="stats">
-            <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b style="color:#8FE3AE">{released}</b><span class="tiny" style="color:#C9C7F2">livraisons prouvées</span></div>
-            <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b>{refunded}</b><span class="tiny" style="color:#C9C7F2">remboursements</span></div>
-            {invalid > 0 && <div class="stat" style="background:rgba(255,255,255,0.09);border:0"><b style="color:#F5C766">{invalid}</b><span class="tiny" style="color:#C9C7F2">reçus rejetés</span></div>}
+        <section class="band">
+          <div class="row" style="gap:8px"><Shield /><strong>Vérifié sur votre téléphone</strong></div>
+          <div class="figures" style={invalid > 0 ? '' : 'grid-template-columns:repeat(2, minmax(0, 1fr))'}>
+            <div><b style="color:#8FE3AE">{released}</b><span>livraisons prouvées</span></div>
+            <div><b>{refunded}</b><span>remboursements</span></div>
+            {invalid > 0 && <div><b style="color:var(--saffron)">{invalid}</b><span>reçus rejetés</span></div>}
           </div>
         </section>
 
@@ -100,19 +100,19 @@ export function Verify({ slug }: { slug: string }) {
           </span>
         </section>
 
-        <h2 style="font-size:16px">Reçus</h2>
-        {rows.length === 0 && <div class="card small muted">Aucun reçu pour l'instant.</div>}
-        <div class="stack" style="gap:8px">
+        <h2 class="section-title">Reçus</h2>
+        <div class="list">
+          {rows.length === 0 && <div class="list-empty">Aucun reçu pour l'instant.</div>}
           {rows.map(({ ev, check, amount, at }) => (
-            <div key={ev.id} class="card row" style="padding:12px 14px">
+            <div key={ev.id} class="list-row">
               <div class="grow">
-                <div style="font-weight:600;font-size:14px">{xof(amount)}</div>
+                <div class="amount">{xof(amount)}</div>
                 <div class="tiny muted">{at.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} vers {at.getHours()}h</div>
               </div>
               <div style="text-align:right">
                 {check.valid ? (
                   <span class={`pill ${check.outcome === 'released' ? 'RELEASED' : 'REFUNDED'}`}>
-                    {check.outcome === 'released' ? <><Check size={11} color="currentColor" /> Livrée · paiement prouvé</> : 'Remboursée'}
+                    {check.outcome === 'released' ? <><Check size={11} color="currentColor" /> Livrée, paiement prouvé</> : 'Remboursée'}
                   </span>
                 ) : (
                   <span class="pill EXPIRED">Reçu invalide</span>

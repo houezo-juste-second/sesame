@@ -70,7 +70,7 @@ export function CourierMission({ id }: { id: string }) {
           <h1>Livraison confirmée</h1>
           <p class="muted" style="margin:0;line-height:1.5">Vous pouvez remettre le colis. La vendeuse vient d'être payée.</p>
           <div class="card stack small" style="text-align:left">
-            <div class="between"><span class="muted">Vous avez reçu</span><span class="big-amount" style="color:var(--green)">+{xof(order.courierFeeXof ?? 0)}</span></div>
+            <div class="between"><span class="muted">Vous avez reçu</span><span class="big-amount" style="color:var(--leaf)">+{xof(order.courierFeeXof ?? 0)}</span></div>
             <div class="divider" />
             <div class="between"><span class="muted">Commande</span><span>{order.itemLabel}</span></div>
             <div class="between"><span class="muted">Boutique</span><span>{order.shopName}</span></div>
@@ -84,15 +84,19 @@ export function CourierMission({ id }: { id: string }) {
   return (
     <div class="screen night">
       <SimBanner show={order.simulation} />
-      <header class="top" style="flex-direction:column;align-items:flex-start;gap:4px">
+      <header class="top stacked">
         <Brand />
-        <div class="tiny" style="color:#A9ABC6;text-transform:uppercase;letter-spacing:0.4px;margin-top:8px">Mission</div>
-        <h2 style="font-size:18px">{order.shopName} → {order.itemLabel}</h2>
-        <div class="row" style="gap:8px;margin-top:6px;flex-wrap:wrap">
-          <span class="pill" style="background:rgba(245,181,63,0.16);color:#F5C766">Votre course : {xof(order.courierFeeXof ?? 0)}</span>
-          <span class="pill" style="background:rgba(255,255,255,0.08);color:#D6D7E6">
-            {ready ? 'Paiement client bloqué ✓' : order.state === 'REFUNDED' ? 'Commande remboursée' : order.state === 'EXPIRED' ? 'Commande expirée' : 'Client pas encore payé'}
-          </span>
+        <div class="stack" style="gap:10px">
+          <div>
+            <div class="small" style="color:#B9BDE0">Livraison pour {order.shopName}</div>
+            <h2 style="font-size:21px;margin-top:2px">{order.itemLabel}</h2>
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:10px">
+            <span class="fee-tag"><span class="small">Votre course</span><b>{xof(order.courierFeeXof ?? 0)}</b></span>
+            <span class={`status ${order.state}`} style={ready ? 'color:#8FE3AE' : 'color:#B9BDE0'}>
+              {ready ? 'Paiement du client bloqué' : order.state === 'REFUNDED' ? 'Commande remboursée' : order.state === 'EXPIRED' ? 'Commande expirée' : "Le client n'a pas encore payé"}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -106,7 +110,7 @@ export function CourierMission({ id }: { id: string }) {
             )}
             <div class="center stack" style="gap:6px">
               <h2 style="font-size:18px">Scannez le sésame du client</h2>
-              <div class="small" style="color:#A9ABC6;line-height:1.45;max-width:290px;margin:0 auto">
+              <div class="small" style="color:#B9BDE0;line-height:1.45;max-width:290px;margin:0 auto">
                 Remettez le colis <strong style="color:#fff">seulement</strong> après le scan réussi. Vous êtes payé à la seconde.
               </div>
             </div>
@@ -115,7 +119,7 @@ export function CourierMission({ id }: { id: string }) {
           <div class="card small" style="background:rgba(255,255,255,0.06);border:0;color:#D6D7E6;line-height:1.5">
             {order.state === 'REFUNDED' || order.state === 'EXPIRED'
               ? "Cette commande n'est plus active. Ne livrez pas : rapportez le colis à la vendeuse."
-              : "Le client n'a pas encore payé. Attendez « Paiement client bloqué ✓ » avant de partir."}
+              : "Le client n'a pas encore payé. Attendez « Paiement du client bloqué » avant de partir."}
           </div>
         )}
         {error && <ErrorBox message={error} />}
@@ -137,7 +141,7 @@ export function CourierMission({ id }: { id: string }) {
               <button class="btn ghost" onClick={() => setManual(true)}>Coller le sésame du client</button>
             </>
           )}
-          <div class="tiny center" style="color:#A9ABC6">Le client peut aussi confirmer lui-même avec « J'ai reçu mon colis ».</div>
+          <div class="tiny center" style="color:#B9BDE0">Le client peut aussi confirmer lui-même avec « J'ai reçu mon colis ».</div>
         </footer>
       )}
     </div>

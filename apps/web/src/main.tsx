@@ -1,7 +1,7 @@
 import { render, type FunctionComponent } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import '@fontsource-variable/inter';
-import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/bricolage-grotesque/opsz.css';
+import '@fontsource-variable/atkinson-hyperlegible-next/wght.css';
 import './styles.css';
 import { match, usePath } from './router.js';
 import { Home } from './screens/Home.js';
