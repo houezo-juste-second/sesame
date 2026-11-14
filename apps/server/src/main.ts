@@ -55,5 +55,7 @@ setInterval(() => {
 }, tickMs).unref();
 
 const port = Number(env.PORT ?? 8080);
-await app.listen({ port, host: env.HOST ?? '127.0.0.1' });
-app.log.info(`Mode SIMULATION — aucun argent réel. Boutique démo « pagnes-de-fifame », PIN ${demoPin}.`);
+// Hébergeurs (Render, etc.) : PORT fourni → écouter sur toutes les interfaces.
+const host = env.HOST ?? (env.PORT || env.RENDER ? '0.0.0.0' : '127.0.0.1');
+await app.listen({ port, host });
+app.log.info(`Mode SIMULATION — aucun argent réel. Boutique démo « pagnes-de-fifame »${env.SESAME_DEMO_PIN ? '' : ', PIN par défaut 2026'}.`);
