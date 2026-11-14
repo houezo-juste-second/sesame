@@ -8,6 +8,7 @@ import { Home } from './screens/Home.js';
 import { ClientOrder } from './screens/ClientOrder.js';
 import { CourierMission } from './screens/CourierMission.js';
 import { SellerHome, SellerNewOrder, SellerOrder } from './screens/Seller.js';
+import { DemoBar, DemoStart, getDemo } from './demo.js';
 
 /** La page de vérification (cryptographie Nostr) n'est téléchargée que si on l'ouvre. */
 function LazyVerify({ slug }: { slug: string }) {
@@ -16,9 +17,26 @@ function LazyVerify({ slug }: { slug: string }) {
   return C ? <C slug={slug} /> : <div class="content center muted">Chargement…</div>;
 }
 
+/** L'administration n'est téléchargée que par l'administrateur. */
+function LazyAdmin() {
+  const [C, setC] = useState<FunctionComponent | null>(null);
+  useEffect(() => { void import('./screens/Admin.js').then((m) => setC(() => m.Admin)); }, []);
+  return C ? <C /> : <div class="content center muted">Chargement…</div>;
+}
+
 function App() {
   const path = usePath();
+  const screen = route(path);
+  // Démo guidée : barre de rôles au-dessus des écrans de la commande de démo.
+  const demo = getDemo();
+  const inDemo = demo && (path.includes(demo.orderId) || path === '/v');
+  return inDemo ? <><DemoBar demo={demo} path={path} />{screen}</> : screen;
+}
+
+function route(path: string) {
   let m: Record<string, string> | null;
+  if (match('/demo', path)) return <DemoStart />;
+  if (match('/admin', path)) return <LazyAdmin />;
   if ((m = match('/c/:id', path))) return <ClientOrder key={m.id} id={m.id!} />;
   if ((m = match('/l/:id', path))) return <CourierMission key={m.id} id={m.id!} />;
   if ((m = match('/verify/:slug', path))) return <LazyVerify key={m.slug} slug={m.slug!} />;

@@ -57,6 +57,11 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX nostr_by_shop ON nostr_events(shop_id, created_at DESC);
   `,
+  // v2 : suspension par l'administrateur, boutiques de démonstration
+  `
+  ALTER TABLE shops ADD COLUMN suspended INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE shops ADD COLUMN demo INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export type Db = DatabaseSync;

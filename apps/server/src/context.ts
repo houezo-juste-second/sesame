@@ -31,6 +31,8 @@ export interface ServerConfig {
   /** Remplace le publieur (tests). */
   publisher?: RelayPublisher | undefined;
   onError?: ((e: unknown) => void) | undefined;
+  /** Code d'accès à l'administration (8 caractères min.) ; absent : administration désactivée. */
+  adminCode?: string | undefined;
 }
 
 export interface ServerContext {

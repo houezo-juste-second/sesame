@@ -18,10 +18,22 @@ if (!env.SESAME_MASTER_KEY) {
   console.warn('[sesame] SESAME_MASTER_KEY absente : clé éphémère. Les sésames en attente ne survivront pas à un redémarrage (→ remboursement automatique).');
 }
 
+/** Code d'administration : 8 caractères minimum, sinon l'administration reste désactivée. */
+function adminCode(): string | undefined {
+  const code = env.SESAME_ADMIN_CODE?.trim();
+  if (!code) return undefined;
+  if (code.length < 8) {
+    console.warn('[sesame] SESAME_ADMIN_CODE trop court (8 caractères minimum) : administration désactivée.');
+    return undefined;
+  }
+  return code;
+}
+
 const ctx = createServerContext({
   mode: 'simulation',
   dbPath: env.SESAME_DB_PATH ?? 'data/sesame.sqlite',
   masterKey: env.SESAME_MASTER_KEY || undefined,
+  adminCode: adminCode(),
   nostrRelays: env.SESAME_NOSTR_RELAYS ? env.SESAME_NOSTR_RELAYS.split(',').map((r) => r.trim()).filter(Boolean) : [],
   onError: (e) => console.error('[sesame] reçu Nostr non émis :', e instanceof Error ? e.message : e),
   fixedXofPerBtc: env.SESAME_FIXED_RATE ? Number(env.SESAME_FIXED_RATE) : undefined,

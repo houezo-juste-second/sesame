@@ -7,10 +7,16 @@ export interface Shop {
   /** Clé publique Nostr (hex) qui signe les reçus de la boutique. */
   nostrPubkey: string;
   createdAt: Date;
+  /** Suspendue par l'administrateur : plus de connexion ni de nouvelle commande. */
+  suspended: boolean;
+  /** Créée par le parcours « Essayer la démo ». */
+  demo: boolean;
 }
 
 export interface ShopStore {
-  create(input: { name: string; city: string; pinHash: string }): Shop;
+  create(input: { name: string; city: string; pinHash: string; demo?: boolean }): Shop;
+  list(): Shop[];
+  setSuspended(id: string, suspended: boolean): void;
   get(id: string): Shop | undefined;
   bySlug(slug: string): Shop | undefined;
   /** Clé secrète Nostr de la boutique (déchiffrée à la demande, jamais exposée par l'API). */

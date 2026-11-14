@@ -80,6 +80,11 @@ export class SqliteOrderStore implements OrderStore {
     return rows.map((r) => this.toOrder(r)!);
   }
 
+  async listAll(limit = 5_000): Promise<Order[]> {
+    const rows = this.db.prepare('SELECT data, pending_preimage FROM orders ORDER BY created_at DESC LIMIT ?').all(limit) as unknown as OrderRow[];
+    return rows.map((r) => this.toOrder(r)!);
+  }
+
   async listActionable(): Promise<Order[]> {
     const rows = this.db
       .prepare(`SELECT data, pending_preimage FROM orders WHERE state NOT IN ${TERMINAL} OR has_pending_payout = 1`)
@@ -90,25 +95,39 @@ export class SqliteOrderStore implements OrderStore {
 
 // ---------------------------------------------------------------- boutiques
 
-interface ShopRow { id: string; slug: string; name: string; city: string; pin_hash: string; nostr_pubkey: string; created_at: string }
+interface ShopRow { id: string; slug: string; name: string; city: string; pin_hash: string; nostr_pubkey: string; created_at: string; suspended: number; demo: number }
 
 export class SqliteShopStore implements ShopStore {
   constructor(private readonly db: Db, private readonly box: SecretBox) {}
 
   private toShop(r: ShopRow | undefined): Shop | undefined {
-    return r && { id: r.id, slug: r.slug, name: r.name, city: r.city, pinHash: r.pin_hash, nostrPubkey: r.nostr_pubkey, createdAt: new Date(r.created_at) };
+    return r && {
+      id: r.id, slug: r.slug, name: r.name, city: r.city, pinHash: r.pin_hash, nostrPubkey: r.nostr_pubkey,
+      createdAt: new Date(r.created_at), suspended: r.suspended === 1, demo: r.demo === 1,
+    };
   }
 
-  create(input: { name: string; city: string; pinHash: string }): Shop {
+  create(input: { name: string; city: string; pinHash: string; demo?: boolean }): Shop {
     const base = slugify(input.name);
     let slug = base;
     for (let i = 2; this.db.prepare('SELECT 1 FROM shops WHERE slug = ?').get(slug); i++) slug = `${base}-${i}`;
     const sk = generateSecretKey();
-    const shop: Shop = { id: randomUUID(), slug, name: input.name, city: input.city, pinHash: input.pinHash, nostrPubkey: getPublicKey(sk), createdAt: new Date() };
+    const shop: Shop = {
+      id: randomUUID(), slug, name: input.name, city: input.city, pinHash: input.pinHash, nostrPubkey: getPublicKey(sk),
+      createdAt: new Date(), suspended: false, demo: input.demo ?? false,
+    };
     this.db
-      .prepare('INSERT INTO shops (id, slug, name, city, pin_hash, nostr_pubkey, nostr_seckey, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(shop.id, shop.slug, shop.name, shop.city, shop.pinHash, shop.nostrPubkey, this.box.seal(bytesToHex(sk)), shop.createdAt.toISOString());
+      .prepare('INSERT INTO shops (id, slug, name, city, pin_hash, nostr_pubkey, nostr_seckey, created_at, demo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(shop.id, shop.slug, shop.name, shop.city, shop.pinHash, shop.nostrPubkey, this.box.seal(bytesToHex(sk)), shop.createdAt.toISOString(), shop.demo ? 1 : 0);
     return shop;
+  }
+
+  list(): Shop[] {
+    return (this.db.prepare('SELECT * FROM shops ORDER BY created_at DESC').all() as unknown as ShopRow[]).map((r) => this.toShop(r)!);
+  }
+
+  setSuspended(id: string, suspended: boolean): void {
+    this.db.prepare('UPDATE shops SET suspended = ? WHERE id = ?').run(suspended ? 1 : 0, id);
   }
 
   get(id: string): Shop | undefined {

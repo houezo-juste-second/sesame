@@ -50,3 +50,15 @@ export const KeyHole = ({ size = 18, color = '#F3AA3C' }: P) => (
 export const Chevron = ({ size = 18, color = 'currentColor' }: P) => (
   <svg {...base(size, color)}><path d="M9 6l6 6-6 6" /></svg>
 );
+export const Store = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg {...base(size, color)} stroke-width={2}><path d="M4 10v10h16V10M3 10l2-6h14l2 6M3 10c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3M10 20v-5h4v5" /></svg>
+);
+export const Bag = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg {...base(size, color)} stroke-width={2}><path d="M5 8h14l-1 12H6L5 8z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
+);
+export const Bike = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg {...base(size, color)} stroke-width={2}><circle cx="5.5" cy="17" r="3" /><circle cx="18.5" cy="17" r="3" /><path d="M5.5 17l4-7h5l4 7M14.5 10l-2-4h3M9.5 10L8 7H6" /></svg>
+);
+export const Play = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill={color} /></svg>
+);

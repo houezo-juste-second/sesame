@@ -55,4 +55,6 @@ export interface OrderStore {
   listByShop(shopId: string): Promise<Order[]>;
   /** Commandes qui demandent encore une action du planificateur. */
   listActionable(): Promise<Order[]>;
+  /** Toutes les commandes, les plus récentes d'abord (administration). */
+  listAll(limit?: number): Promise<Order[]>;
 }

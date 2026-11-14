@@ -1,5 +1,5 @@
 import { navigate } from '../router.js';
-import { KeyHole, Lock } from '../ui/icons.js';
+import { Bag, Bike, KeyHole, Lock, Play, Store } from '../ui/icons.js';
 import { Brand } from '../ui/kit.js';
 
 const go = (path: string) => (e: Event) => { e.preventDefault(); navigate(path); };
@@ -18,7 +18,7 @@ export function Home() {
         <span class="grow" />
         <a class="chip-link" href="/v" onClick={go('/v')}>Espace vendeuse</a>
       </header>
-      <main class="content fade-in" style="gap:26px">
+      <main class="content fade-in" style="gap:28px">
         <section class="stack" style="gap:14px;padding-top:8px">
           <h1 class="display">Le client paie avant.<br />Vous êtes payée à la livraison.</h1>
           <p class="lede">Le paiement à la livraison sans cash et sans fausse capture, pour les ventes sur WhatsApp, Instagram et TikTok.</p>
@@ -32,13 +32,42 @@ export function Home() {
               <div class="preview-head"><KeyHole size={16} /> Sésame</div>
               <div class="preview-body">
                 <span class="small muted">2 pagnes wax bleus, livrés à Fidjrossè</span>
-                <strong class="num" style="font-family:var(--font-display);font-size:20px">19 500 FCFA</strong>
+                <strong class="num" style="font-size:20px">19 500 FCFA</strong>
               </div>
               <div class="preview-pay">Payer en sécurité</div>
             </div>
             <span class="time">10:42</span>
           </div>
           <div class="bubble mine">C'est payé. J'attends le livreur 👍<span class="time">10:44</span></div>
+        </section>
+
+        <section class="stack" style="gap:14px">
+          <h2>Qui fait quoi</h2>
+          <p class="muted small">Seule la vendeuse a un compte. Le client et le livreur reçoivent un lien sur WhatsApp : rien à installer, aucun compte à créer.</p>
+          <div class="list roles">
+            <div class="role">
+              <span class="role-icon"><Store size={20} /></span>
+              <div class="grow">
+                <h3>La vendeuse</h3>
+                <p>Crée la commande, envoie le lien de paiement au client, puis la mission au livreur. Elle suit tout depuis son tableau de bord.</p>
+                <a class="role-action" href="/v" onClick={go('/v')}>Ouvrir l'espace vendeuse</a>
+              </div>
+            </div>
+            <div class="role">
+              <span class="role-icon"><Bag size={20} /></span>
+              <div class="grow">
+                <h3>Le client</h3>
+                <p>Ouvre le lien reçu, paie : son argent est bloqué. À la livraison, il vérifie le colis puis montre son sésame.</p>
+              </div>
+            </div>
+            <div class="role">
+              <span class="role-icon"><Bike size={20} /></span>
+              <div class="grow">
+                <h3>Le livreur</h3>
+                <p>Ouvre le lien de mission, voit que le client a déjà payé, scanne le sésame et reçoit sa course aussitôt. Plus de cash sur lui.</p>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="stack" style="gap:16px">
@@ -61,8 +90,8 @@ export function Home() {
         </section>
       </main>
       <footer class="bottom">
-        <a class="btn primary" href="/v" onClick={go('/v')}>Je vends en ligne</a>
-        <div class="tiny muted center">Client ou livreur ? Ouvrez le lien reçu sur WhatsApp.</div>
+        <a class="btn saffron" href="/demo" onClick={go('/demo')}><Play /> Essayer les 3 rôles en 2 minutes</a>
+        <div class="tiny muted center">Démonstration sans compte et sans argent réel, sur ce téléphone</div>
       </footer>
     </div>
   );

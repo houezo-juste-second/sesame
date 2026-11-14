@@ -6,6 +6,8 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import { z, ZodError } from 'zod';
 import * as nip19 from 'nostr-tools/nip19';
 import { STATE_LABEL_FR } from '@sesame/core';
+import { randomInt } from 'node:crypto';
+import { AdminSessions, adminOverview } from './admin.js';
 import { bearer, hashPin, verifyPin, type Grant, type Role } from './auth.js';
 import { extractOrder, MAX_INPUT_CHARS } from './ai/extract.js';
 import { EscrowError, type EngineEvent, type EscrowErrorCode } from './escrow/engine.js';
@@ -67,6 +69,10 @@ const ReleaseInput = z.object({ preimage: z.string().regex(/^[0-9a-fA-F]{64}$/) 
 const AssignInput = z.object({ lightningAddress: z.string().trim().min(3).max(320) });
 const ExtractInput = z.object({ text: z.string().min(1).max(MAX_INPUT_CHARS) });
 const IdParam = z.object({ id: z.string().uuid() });
+const AdminLoginInput = z.object({ code: z.string().min(1).max(128) });
+const SuspendInput = z.object({ suspended: z.boolean() });
+
+const SUSPENDED_MSG = 'Cette boutique est suspendue. Contactez le support Sésame.';
 
 export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): FastifyInstance {
   const app = Fastify({
@@ -105,6 +111,9 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
 
   const releaseLimiter = new Limiter(5, 60_000);
   const loginLimiter = new Limiter(5, 60_000);
+  const adminLimiter = new Limiter(5, 60_000);
+  const demoLimiter = new Limiter(30, 60_000);
+  const admin = new AdminSessions(ctx.config.adminCode);
 
   // ---------------------------------------------------------------- utilitaires
 
@@ -127,11 +136,13 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     return { grant, order, shop };
   }
 
-  function sellerShop(req: FastifyRequest): Shop {
+  /** write : action qui engage la boutique (nouvelle commande, livreur…) — refusée si elle est suspendue. */
+  function sellerShop(req: FastifyRequest, write = false): Shop {
     const grant = grantOf(req);
     if (grant.role !== 'seller') throw new HttpError(403, 'FORBIDDEN', 'Réservé à la vendeuse.');
     const shop = ctx.shops.get(grant.shopId);
     if (!shop) throw new HttpError(401, 'UNAUTHORIZED', 'Boutique introuvable.');
+    if (write && shop.suspended) throw new HttpError(403, 'SHOP_SUSPENDED', SUSPENDED_MSG);
     return shop;
   }
 
@@ -240,6 +251,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     if (!loginLimiter.take(input.slug)) throw new HttpError(429, 'RATE_LIMITED', "Trop d'essais. Réessayez dans une minute.");
     const shop = ctx.shops.bySlug(input.slug);
     if (!shop || !(await verifyPin(input.pin, shop.pinHash))) throw new HttpError(401, 'BAD_PIN', 'Code PIN incorrect.');
+    if (shop.suspended) throw new HttpError(403, 'SHOP_SUSPENDED', SUSPENDED_MSG);
     return { shopId: shop.id, slug: shop.slug, sellerToken: ctx.tokens.issue({ role: 'seller', shopId: shop.id }) };
   });
 
@@ -249,7 +261,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     const locked = orders.filter((o) => o.state === 'FUNDS_LOCKED' || o.state === 'OUT_FOR_DELIVERY');
     const released = orders.filter((o) => o.state === 'RELEASED');
     return {
-      shop: { name: shop.name, slug: shop.slug, city: shop.city },
+      shop: { name: shop.name, slug: shop.slug, city: shop.city, suspended: shop.suspended, demo: shop.demo },
       orders: orders.map((o) => view(o, shop, 'seller')),
       summary: {
         releasedXof: released.reduce((s, o) => s + netXof(o), 0),
@@ -294,7 +306,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   // ---------------------------------------------------------------- commandes
 
   app.post('/api/orders', async (req, reply) => {
-    const shop = sellerShop(req);
+    const shop = sellerShop(req, true);
     const input = OrderInput.parse(req.body);
     const order = await ctx.engine.createOrder({ shopId: shop.id, ...input, xofPerBtc: await ctx.rate.xofPerBtc() });
     const clientToken = ctx.tokens.issue({ role: 'client', shopId: shop.id, orderId: order.id });
@@ -312,7 +324,8 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   });
 
   app.post('/api/orders/:id/lock', async (req) => {
-    const { order } = await orderFor(req, ['client']);
+    const { order, shop } = await orderFor(req, ['client']);
+    if (shop.suspended) throw new HttpError(403, 'SHOP_SUSPENDED', 'Cette boutique est suspendue : ne payez pas cette commande.');
     const { paymentHash } = LockInput.parse(req.body);
     const res = await ctx.engine.lock(order.id, paymentHash);
     return { bolt11: res.bolt11, amountSat: (res.amountMsat / 1000n).toString(), expiresAt: res.expiresAt };
@@ -320,6 +333,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
 
   app.post('/api/orders/:id/assign', async (req) => {
     const { order, shop } = await orderFor(req, ['seller']);
+    if (shop.suspended) throw new HttpError(403, 'SHOP_SUSPENDED', SUSPENDED_MSG);
     const { lightningAddress } = AssignInput.parse(req.body);
     const updated = await ctx.engine.assignCourier(order.id, lightningAddress);
     const courierToken = ctx.tokens.issue({ role: 'courier', shopId: shop.id, orderId: order.id });
@@ -350,10 +364,65 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     return view(updated!, shop, grant.role);
   });
 
+  /**
+   * « Essayer la démo » : une boutique de démonstration jetable et une commande prête.
+   * Chaque visiteur a sa propre boutique : personne ne peut toucher aux commandes d'un autre.
+   */
+  app.post('/api/demo/start', async (_req, reply) => {
+    if (ctx.config.mode !== 'simulation') throw new HttpError(404, 'NOT_FOUND', 'Indisponible.');
+    if (!demoLimiter.take('demo')) throw new HttpError(429, 'RATE_LIMITED', 'Beaucoup de démos en cours. Réessayez dans une minute.');
+    const shop = ctx.shops.create({
+      name: 'Pagnes de Fifamè (démo)', city: 'Cotonou', demo: true,
+      pinHash: await hashPin(String(randomInt(100_000, 1_000_000))), // PIN aléatoire jamais communiqué
+    });
+    const order = await ctx.engine.createOrder({
+      shopId: shop.id, itemLabel: '2 pagnes wax bleus', itemXof: 18_000, deliveryFeeXof: 1_500, deliveryHours: 6,
+      xofPerBtc: await ctx.rate.xofPerBtc(),
+    });
+    return reply.status(201).send({
+      slug: shop.slug,
+      orderId: order.id,
+      sellerToken: ctx.tokens.issue({ role: 'seller', shopId: shop.id }),
+      clientToken: ctx.tokens.issue({ role: 'client', shopId: shop.id, orderId: order.id }),
+    });
+  });
+
+  // ---------------------------------------------------------------- administration
+
+  function requireAdmin(req: FastifyRequest): void {
+    if (!admin.enabled) throw new HttpError(404, 'NOT_FOUND', 'Introuvable.');
+    if (!admin.check(bearer(req.headers.authorization))) throw new HttpError(401, 'UNAUTHORIZED', 'Session expirée. Reconnectez-vous.');
+  }
+
+  app.post('/api/admin/login', async (req) => {
+    if (!admin.enabled) throw new HttpError(404, 'NOT_FOUND', 'Introuvable.');
+    if (!adminLimiter.take('admin')) throw new HttpError(429, 'RATE_LIMITED', "Trop d'essais. Réessayez dans une minute.");
+    const { code } = AdminLoginInput.parse(req.body);
+    const token = admin.login(code);
+    if (!token) throw new HttpError(401, 'BAD_CODE', "Code d'accès incorrect.");
+    return { adminToken: token };
+  });
+
+  app.get('/api/admin/overview', async (req) => {
+    requireAdmin(req);
+    return adminOverview(ctx);
+  });
+
+  app.post('/api/admin/shops/:id/suspend', async (req) => {
+    requireAdmin(req);
+    const { id } = IdParam.parse(req.params);
+    const { suspended } = SuspendInput.parse(req.body);
+    const shop = ctx.shops.get(id);
+    if (!shop) throw new HttpError(404, 'SHOP_NOT_FOUND', 'Boutique introuvable.');
+    ctx.shops.setSuspended(id, suspended);
+    ctx.audit.append({ orderId: `shop:${id}`, event: suspended ? 'SHOP_SUSPENDED' : 'SHOP_REINSTATED', payload: { shop: shop.slug } });
+    return { id, suspended };
+  });
+
   // ---------------------------------------------------------------- IA, taux, santé
 
   app.post('/api/ai/extract-order', async (req) => {
-    sellerShop(req);
+    sellerShop(req, true);
     const { text } = ExtractInput.parse(req.body);
     return extractOrder(text, ctx.config.llm ?? {});
   });

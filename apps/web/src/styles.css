@@ -4,6 +4,15 @@
  * vert feuille (payé, livré). Un seul objet fort : le ticket détachable (commande, sésame).
  * Titres : Bricolage Grotesque. Texte : Atkinson Hyperlegible Next (lisible sur petits écrans).
  */
+/* Chiffres : ceux de Bricolage Grotesque partout (zéro sans barre, plus naturel pour les prix). */
+@font-face {
+  font-family: 'Sesame Chiffres';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url('../../../node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-opsz-normal.woff2') format('woff2-variations');
+  unicode-range: U+0030-0039;
+}
 :root {
   --bg: #EEF0F5;
   --surface: #FFFFFF;
@@ -36,7 +45,7 @@
   --r-m: 14px;
   --r-l: 22px;
   --font-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif;
-  --font-body: 'Atkinson Hyperlegible Next Variable', 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --font-body: 'Sesame Chiffres', 'Atkinson Hyperlegible Next Variable', 'Atkinson Hyperlegible Next', system-ui, sans-serif;
   /* Motif « serrure » : losanges et trous de serrure, très discret. */
   --motif: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.09' stroke-width='1.5'%3E%3Cpath d='M22 2l20 20-20 20L2 22z'/%3E%3Ccircle cx='22' cy='19.5' r='3.2'/%3E%3Cpath d='M22 22.5v5'/%3E%3C/g%3E%3C/svg%3E");
   color-scheme: light;
@@ -256,3 +265,43 @@ textarea.input { min-height: 104px; line-height: 1.45; resize: vertical; }
   .success-burst { animation: pop 0.45s cubic-bezier(.2,1.4,.4,1) both; }
   @keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
 }
+
+/* ------------------------------------------------------------ accueil : qui fait quoi */
+.roles > .role { display: flex; gap: 14px; padding: 16px; align-items: flex-start; }
+.role-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--indigo-soft); color: var(--indigo); display: grid; place-items: center; flex-shrink: 0; }
+.role p { color: var(--muted); font-size: 15px; margin-top: 3px; }
+.role-action { display: inline-block; margin-top: 8px; font-weight: 700; font-size: 15px; color: var(--indigo); text-underline-offset: 3px; min-height: 24px; }
+
+/* ------------------------------------------------------------ démo guidée */
+.demo-bar { position: sticky; top: 0; z-index: 5; background: var(--saffron-ink); color: #fff; padding: max(10px, env(safe-area-inset-top)) 16px 12px; display: flex; flex-direction: column; gap: 8px; }
+.demo-bar strong { font-family: var(--font-display); font-size: 15px; }
+.demo-sim { font-family: var(--font-body); font-weight: 400; font-size: 12.5px; color: var(--saffron); margin-left: 6px; }
+.demo-quit { background: transparent; border: 1px solid rgba(255,255,255,0.25); color: #fff; border-radius: 10px; min-height: 36px; padding: 6px 12px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.demo-hint { font-size: 14px; line-height: 1.4; color: #F3E6CF; }
+.demo-hint b { color: var(--saffron); }
+.demo-hint a { color: var(--saffron); font-weight: 700; }
+.demo-tabs { display: flex; gap: 4px; padding: 4px; background: rgba(255,255,255,0.08); border-radius: 12px; }
+.demo-tabs button { flex: 1; min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: #E9DDC8; font-weight: 700; font-size: 14px; cursor: pointer; position: relative; }
+.demo-tabs button[aria-pressed="true"] { background: var(--saffron); color: var(--saffron-ink); }
+.demo-tabs button.next::after { content: ''; position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--saffron); box-shadow: 0 0 0 3px rgba(243,170,60,0.3); }
+.demo-tabs button:disabled { opacity: 0.4; cursor: not-allowed; }
+body.demo-on .banner-sim { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .demo-tabs button.next::after { animation: beckon 1.6s ease-in-out infinite; }
+  @keyframes beckon { 50% { box-shadow: 0 0 0 6px rgba(243,170,60,0); } }
+}
+
+/* ------------------------------------------------------------ administration */
+.admin-tag { font-size: 12.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--ink); color: #fff; }
+.alert-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.alert-dot.ok { background: var(--leaf); box-shadow: 0 0 0 4px var(--leaf-soft); }
+.alert-dot.bad { background: var(--clay); box-shadow: 0 0 0 4px var(--clay-soft); }
+.bar-row { display: grid; grid-template-columns: minmax(0, 9.5em) 1fr 2.2em; gap: 10px; align-items: center; }
+.bar-row > b { text-align: right; }
+.bar { height: 10px; border-radius: 99px; background: var(--gray-soft); overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 99px; background: var(--faint); min-width: 0; }
+.bar-fill.FUNDS_LOCKED { background: var(--indigo); }
+.bar-fill.OUT_FOR_DELIVERY { background: var(--saffron); }
+.bar-fill.RELEASED { background: var(--leaf); }
+.bar-fill.REFUNDED { background: var(--clay); }
+.shop-row { padding: 14px 16px 8px; display: flex; flex-direction: column; gap: 4px; }

@@ -26,6 +26,13 @@ export class MemoryOrderStore implements OrderStore {
       .map((o) => structuredClone(o));
   }
 
+  async listAll(limit = 5_000): Promise<Order[]> {
+    return [...this.orders.values()]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit)
+      .map((o) => structuredClone(o));
+  }
+
   async listActionable(): Promise<Order[]> {
     return [...this.orders.values()]
       .filter((o) => (!isTerminal(o.state) && o.state !== 'DRAFT') || o.payouts.some((p) => p.status === 'pending'))

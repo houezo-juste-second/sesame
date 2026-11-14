@@ -22,6 +22,8 @@ services:
         generateValue: true
       - key: SESAME_DEMO_PIN
         sync: false
+      - key: SESAME_ADMIN_CODE
+        sync: false
       # IA gratuite (optionnel) : créer une clé sur https://console.groq.com puis la saisir dans Render.
       - key: SESAME_AI_BASE_URL
         value: https://api.groq.com/openai/v1

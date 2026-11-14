@@ -1,7 +1,8 @@
 /** Parcours livreur (/l/:id#t=…) : mission → scan du sésame → paiement immédiat. */
 import { useCallback, useEffect, useState } from 'preact/hooks';
-import { decodeSesameQr } from '@sesame/core';
-import { api, ApiError, linkToken, subscribe, xof, type OrderView } from '../api.js';
+import { decodeSesameQr, encodeSesameQr } from '@sesame/core';
+import { api, ApiError, linkToken, local, subscribe, xof, type OrderView } from '../api.js';
+import { getDemo } from '../demo.js';
 import { Check, Scan } from '../ui/icons.js';
 import { Brand, ErrorBox, Loading, SimBanner } from '../ui/kit.js';
 import type { Scanner as ScannerType } from '../ui/Scanner.js';
@@ -81,6 +82,8 @@ export function CourierMission({ id }: { id: string }) {
   }
 
   const ready = order.state === 'FUNDS_LOCKED' || order.state === 'OUT_FOR_DELIVERY';
+  // Démo sur un seul téléphone : le sésame de la cliente est déjà là, on simule le scan.
+  const demoSesame = getDemo()?.orderId === id ? local.get(`sesame:p:${id}`) : null;
   return (
     <div class="screen night">
       <SimBanner show={order.simulation} />
@@ -138,7 +141,11 @@ export function CourierMission({ id }: { id: string }) {
               <button class="btn saffron" disabled={busy} onClick={() => { setError(null); setScanning(!scanning); }}>
                 <Scan color="#1A1300" /> {scanning ? 'Arrêter la caméra' : 'Ouvrir la caméra'}
               </button>
-              <button class="btn ghost" onClick={() => setManual(true)}>Coller le sésame du client</button>
+              {demoSesame ? (
+                <button class="btn ghost" disabled={busy} onClick={() => void release(encodeSesameQr(id, demoSesame))}>Simuler le scan du sésame de la cliente</button>
+              ) : (
+                <button class="btn ghost" onClick={() => setManual(true)}>Coller le sésame du client</button>
+              )}
             </>
           )}
           <div class="tiny center" style="color:#B9BDE0">Le client peut aussi confirmer lui-même avec « J'ai reçu mon colis ».</div>
