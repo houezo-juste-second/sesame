@@ -21,7 +21,7 @@ export interface WalletAdapter {
   lookupInvoice(paymentHash: string): Promise<{ state: HoldInvoiceState; amountPaidMsat: bigint }>;
 }
 
-export type PayoutKind = 'courier' | 'service_fee';
+export type PayoutKind = 'courier' | 'service_fee' | 'seller';
 
 export interface PayoutRequest {
   /** Boutique dont le wallet effectue le paiement (mode A : répartition depuis le wallet vendeuse). */

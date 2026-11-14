@@ -79,7 +79,7 @@ type Role = 'seller' | 'client' | 'courier';
 
 const GUIDE: Record<string, { step: string; text: string; next: Role | null }> = {
   DRAFT: { step: 'Étape 1 sur 3', text: "La vendeuse a créé la commande et envoyé le lien sur WhatsApp. Passez à la cliente pour payer.", next: 'client' },
-  AWAITING_PAYMENT: { step: 'Étape 1 sur 3', text: 'La cliente paie avec le wallet de démo. Aucun argent réel.', next: 'client' },
+  AWAITING_PAYMENT: { step: 'Étape 1 sur 3', text: 'La cliente paie en Mobile Money : choisissez un opérateur, un numéro, puis validez. Aucun argent réel.', next: 'client' },
   FUNDS_LOCKED: { step: 'Étape 2 sur 3', text: "L'argent est bloqué. Passez au livreur : il reçoit sa mission.", next: 'courier' },
   OUT_FOR_DELIVERY: { step: 'Étape 3 sur 3', text: 'Chez la cliente, le livreur scanne son sésame. Tout le monde est payé.', next: 'courier' },
   RELEASED: { step: 'Terminé', text: 'La vendeuse et le livreur sont payés, et un reçu vérifiable est publié.', next: null },

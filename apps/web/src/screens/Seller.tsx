@@ -1,9 +1,9 @@
 /** Espace vendeuse : connexion, tableau de bord, nouvelle commande (avec IA), détail d'une commande. */
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import { serviceFeeXof } from '@sesame/core';
-import { api, ApiError, initials, local, SELLER_KEY, subscribe, xof, type OrderView } from '../api.js';
+import { api, ApiError, initials, local, MOMO_OPERATORS, SELLER_KEY, subscribe, xof, type OrderView } from '../api.js';
 import { navigate } from '../router.js';
-import { Chevron, Logout, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
+import { Chevron, Logout, Phone, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
 import { copyText, ErrorBox, Loading, SimBanner, Toast, TopBar, useToast, whatsappUrl } from '../ui/kit.js';
 import { clientMessage, courierMessage } from '../ui/messages.js';
 
@@ -89,7 +89,7 @@ function SellerAuth({ onToken }: { onToken: (t: string) => void }) {
 // ================================================================ tableau de bord
 
 interface Dash {
-  shop: { name: string; slug: string; city: string };
+  shop: { name: string; slug: string; city: string; payoutLabel?: string | null };
   orders: OrderView[];
   summary: { releasedXof: number; releasedCount: number; lockedXof: number; inDeliveryCount: number };
 }
@@ -142,6 +142,15 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
           </div>
         </section>
 
+        <a class="link-row" href="/v/payout" onClick={(e) => { e.preventDefault(); navigate('/v/payout'); }}>
+          <span class="link-icon"><Phone size={18} color="var(--indigo)" /></span>
+          <span class="grow">
+            <strong style="display:block;font-size:15px">Recevoir mon argent</strong>
+            <span class="tiny muted">{data.shop.payoutLabel ? `Sur ${data.shop.payoutLabel}` : 'Choisir mon compte Mobile Money'}</span>
+          </span>
+          <span class="chev"><Chevron /></span>
+        </a>
+
         <a class="link-row" href={`/verify/${data.shop.slug}`} target="_blank" rel="noopener">
           <span class="link-icon"><Shield size={18} color="var(--indigo)" /></span>
           <span class="grow">
@@ -173,6 +182,94 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
       <footer class="bottom">
         <a class="btn primary" href="/v/new" onClick={(e) => { e.preventDefault(); navigate('/v/new'); }}><Plus /> Nouvelle commande</a>
       </footer>
+    </div>
+  );
+}
+
+// ================================================================ recevoir mon argent
+
+interface PayoutView { method: 'wallet' | 'momo' | 'lightning'; operator?: string; phoneHint?: string; address?: string; label: string | null }
+
+export function SellerPayout() {
+  const [token] = useSellerToken();
+  const [current, setCurrent] = useState<PayoutView | null>(null);
+  const [method, setMethod] = useState<'momo' | 'lightning'>('momo');
+  const [operator, setOperator] = useState<string>('MTN MoMo');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [toast, showToast] = useToast();
+
+  useEffect(() => {
+    if (!token) { navigate('/v'); return; }
+    api<PayoutView>('/api/shops/me/payout', { token }).then((p) => {
+      setCurrent(p);
+      if (p.method === 'lightning') { setMethod('lightning'); setAddress(p.address ?? ''); }
+      if (p.method === 'momo' && p.operator) setOperator(p.operator);
+    }).catch(() => undefined);
+  }, [token]);
+  if (!token) return null;
+
+  async function save(e: Event) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const body = method === 'momo' ? { method, operator, phone } : { method, address };
+      setCurrent(await api<PayoutView>('/api/shops/me/payout', { token, body }));
+      setPhone('');
+      showToast('Compte enregistré');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const digits = phone.replace(/\D/g, '');
+  const valid = method === 'momo' ? digits.length >= 8 && digits.length <= 15 : /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(address.trim());
+
+  return (
+    <div class="screen">
+      <TopBar back="/v" title="Recevoir mon argent" />
+      <form class="content fade-in" onSubmit={save}>
+        {current?.label
+          ? <div class="card ok small">Vos ventes sont versées sur <strong>{current.label}</strong>, dès que la livraison est confirmée.</div>
+          : <div class="card soft small">Choisissez où recevoir l'argent de vos ventes. Il est versé dès que la livraison est confirmée.</div>}
+        <div class="segmented" role="group" aria-label="Moyen de versement">
+          <button type="button" aria-pressed={method === 'momo'} onClick={() => setMethod('momo')}>Mobile Money</button>
+          <button type="button" aria-pressed={method === 'lightning'} onClick={() => setMethod('lightning')}>Wallet Lightning</button>
+        </div>
+        {method === 'momo' ? (
+          <>
+            <div class="field">
+              <span class="label" id="op">Opérateur</span>
+              <div class="operators" role="group" aria-labelledby="op">
+                {MOMO_OPERATORS.map((o) => (
+                  <button type="button" key={o} aria-pressed={operator === o} onClick={() => setOperator(o)}>{o}</button>
+                ))}
+              </div>
+            </div>
+            <div class="field">
+              <label for="pphone">Numéro Mobile Money</label>
+              <input id="pphone" class="input" type="tel" inputMode="tel" autocomplete="tel" placeholder={current?.phoneHint ? `•• •• •• ${current.phoneHint}` : '97 00 00 00'}
+                value={phone} onInput={(e) => setPhone((e.target as HTMLInputElement).value)} />
+              <span class="hint">Votre numéro est chiffré. Il n'est jamais montré aux clients ni aux livreurs.</span>
+            </div>
+          </>
+        ) : (
+          <div class="field">
+            <label for="ln">Adresse Lightning</label>
+            <input id="ln" class="input" value={address} onInput={(e) => setAddress((e.target as HTMLInputElement).value)} placeholder="fifame@blink.sv" autocomplete="off" />
+            <span class="hint">Pour garder vos ventes en bitcoin.</span>
+          </div>
+        )}
+        {error && <ErrorBox message={error} />}
+        <button class="btn primary" disabled={busy || !valid}>Enregistrer</button>
+        <p class="tiny muted">En arrière-plan, le paiement passe par le réseau Bitcoin Lightning et un partenaire de change agréé convertit en FCFA. Pendant la livraison, personne ne peut prendre l'argent bloqué, pas même Sésame.</p>
+      </form>
+      <Toast text={toast} />
     </div>
   );
 }
@@ -342,6 +439,7 @@ export function SellerOrder({ id }: { id: string }) {
           {order.courierAssigned && <div class="between"><span class="muted">Livreur ({order.courierAddress})</span><span>− {xof(order.deliveryFeeXof)}</span></div>}
           <div class="divider" />
           <div class="between"><span style="font-weight:700">Vous recevez à la livraison</span><strong class="big-amount" style="color:var(--leaf)">{xof(order.netXof ?? 0)}</strong></div>
+          <div class="tiny muted">{order.sellerPayoutLabel ? `Versé sur votre ${order.sellerPayoutLabel}` : 'Reçu dans votre wallet Lightning'}{order.payment?.method === 'momo' ? `. Le client a payé avec ${order.payment.operator}.` : order.payment?.method === 'lightning' ? '. Le client a payé avec un wallet Lightning.' : '.'}</div>
         </section>
 
         {clientLink && (order.state === 'DRAFT' || order.state === 'AWAITING_PAYMENT') && (
@@ -377,7 +475,7 @@ export function SellerOrder({ id }: { id: string }) {
           </section>
         )}
 
-        {order.state === 'RELEASED' && <div class="card ok small">Livrée et payée. Le livreur et les frais ont été réglés automatiquement.</div>}
+        {order.state === 'RELEASED' && <div class="card ok small">Livrée et payée{order.sellerPayoutLabel ? `, versé sur votre ${order.sellerPayoutLabel}` : ''}. Le livreur et les frais ont été réglés automatiquement.</div>}
         {order.state === 'REFUNDED' && <div class="card danger small">Remboursée : le client a récupéré son argent.</div>}
 
         {active && (confirmCancel ? (

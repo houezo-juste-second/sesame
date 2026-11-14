@@ -27,7 +27,12 @@ export interface OrderView {
   feeXof?: number;
   netXof?: number;
   reputation?: { released: number; refunded: number };
+  payment?: { method: 'momo' | 'lightning'; operator?: string; phoneHint?: string } | null;
+  sellerPayoutLabel?: string | null;
 }
+
+/** Opérateurs Mobile Money proposés (Bénin, Sénégal, Côte d'Ivoire). */
+export const MOMO_OPERATORS = ['MTN MoMo', 'Moov Money', 'Celtiis Cash', 'Wave', 'Orange Money', 'Free Money'] as const;
 
 export class ApiError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) {

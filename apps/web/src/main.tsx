@@ -7,7 +7,7 @@ import { match, usePath } from './router.js';
 import { Home } from './screens/Home.js';
 import { ClientOrder } from './screens/ClientOrder.js';
 import { CourierMission } from './screens/CourierMission.js';
-import { SellerHome, SellerNewOrder, SellerOrder } from './screens/Seller.js';
+import { SellerHome, SellerNewOrder, SellerOrder, SellerPayout } from './screens/Seller.js';
 import { DemoBar, DemoStart, getDemo } from './demo.js';
 
 /** La page de vérification (cryptographie Nostr) n'est téléchargée que si on l'ouvre. */
@@ -42,6 +42,7 @@ function route(path: string) {
   if ((m = match('/verify/:slug', path))) return <LazyVerify key={m.slug} slug={m.slug!} />;
   if ((m = match('/v/o/:id', path))) return <SellerOrder key={m.id} id={m.id!} />;
   if (match('/v/new', path)) return <SellerNewOrder />;
+  if (match('/v/payout', path)) return <SellerPayout />;
   if (match('/v', path)) return <SellerHome />;
   return <Home />;
 }

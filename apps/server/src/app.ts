@@ -13,7 +13,7 @@ import { extractOrder, MAX_INPUT_CHARS } from './ai/extract.js';
 import { EscrowError, type EngineEvent, type EscrowErrorCode } from './escrow/engine.js';
 import type { Order } from './escrow/types.js';
 import type { ServerContext } from './context.js';
-import type { Shop } from './shops.js';
+import { MOMO_OPERATORS, payoutDestination, payoutLabel, type Shop, type ShopPayout } from './shops.js';
 
 class HttpError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) {
@@ -71,6 +71,20 @@ const ExtractInput = z.object({ text: z.string().min(1).max(MAX_INPUT_CHARS) });
 const IdParam = z.object({ id: z.string().uuid() });
 const AdminLoginInput = z.object({ code: z.string().min(1).max(128) });
 const SuspendInput = z.object({ suspended: z.boolean() });
+const Phone = z.string().transform((v) => v.replace(/[\s.-]/g, '')).pipe(z.string().regex(/^\+?\d{8,15}$/));
+const Operator = z.enum(MOMO_OPERATORS);
+const PayoutInput = z.discriminatedUnion('method', [
+  z.object({ method: z.literal('momo'), operator: Operator, phone: Phone }),
+  z.object({ method: z.literal('lightning'), address: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{1,64}@[a-z0-9.-]{1,253}\.[a-z]{2,}$/) }),
+]);
+const MomoPayInput = z.object({ operator: Operator, phone: Phone });
+
+/** « momo:MTN MoMo:42 » → « MTN MoMo •• 42 » */
+function destinationLabel(d: string | undefined): string | null {
+  if (!d) return null;
+  const m = /^momo:(.+):(\d{2})$/.exec(d);
+  return m ? `${m[1]} •• ${m[2]}` : d;
+}
 
 const SUSPENDED_MSG = 'Cette boutique est suspendue. Contactez le support Sésame.';
 
@@ -178,7 +192,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       createdAt: o.createdAt,
       simulation: ctx.config.mode === 'simulation',
     };
-    if (role === 'client') return { ...base, bolt11: o.state === 'AWAITING_PAYMENT' ? o.bolt11 ?? null : null };
+    if (role === 'client') return { ...base, bolt11: o.state === 'AWAITING_PAYMENT' ? o.bolt11 ?? null : null, payment: o.payment ?? null };
     if (role === 'courier') return { ...base, courierFeeXof: o.deliveryFeeXof };
     return {
       ...base,
@@ -186,6 +200,8 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       feeXof: o.feeXof,
       netXof: netXof(o),
       payouts: o.payouts.map((p) => ({ kind: p.kind, status: p.status })),
+      payment: o.payment ?? null,
+      sellerPayoutLabel: destinationLabel(o.sellerPayoutTo),
     };
   }
 
@@ -261,7 +277,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     const locked = orders.filter((o) => o.state === 'FUNDS_LOCKED' || o.state === 'OUT_FOR_DELIVERY');
     const released = orders.filter((o) => o.state === 'RELEASED');
     return {
-      shop: { name: shop.name, slug: shop.slug, city: shop.city, suspended: shop.suspended, demo: shop.demo },
+      shop: { name: shop.name, slug: shop.slug, city: shop.city, suspended: shop.suspended, demo: shop.demo, payoutLabel: payoutLabel(ctx.shops.getPayout(shop.id)) },
       orders: orders.map((o) => view(o, shop, 'seller')),
       summary: {
         releasedXof: released.reduce((s, o) => s + netXof(o), 0),
@@ -275,6 +291,26 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   app.get('/api/shops/me/events', async (req, reply) => {
     const shop = sellerShop(req);
     sse(req, reply, (fn) => ctx.hub.subscribeShop(shop.id, fn), null);
+  });
+
+  /** Comment la vendeuse reçoit son argent. Le numéro complet n'est jamais renvoyé. */
+  function payoutView(p: ShopPayout | undefined) {
+    if (!p) return { method: 'wallet' as const, label: null };
+    return p.method === 'momo'
+      ? { method: 'momo' as const, operator: p.operator, phoneHint: p.phone.slice(-2), label: payoutLabel(p) }
+      : { method: 'lightning' as const, address: p.address, label: payoutLabel(p) };
+  }
+
+  app.get('/api/shops/me/payout', async (req) => {
+    const shop = sellerShop(req);
+    return payoutView(ctx.shops.getPayout(shop.id));
+  });
+
+  app.post('/api/shops/me/payout', async (req) => {
+    const shop = sellerShop(req, true);
+    const input = PayoutInput.parse(req.body);
+    ctx.shops.setPayout(shop.id, input);
+    return payoutView(input);
   });
 
   function shopBySlug(req: FastifyRequest): Shop {
@@ -308,7 +344,9 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   app.post('/api/orders', async (req, reply) => {
     const shop = sellerShop(req, true);
     const input = OrderInput.parse(req.body);
-    const order = await ctx.engine.createOrder({ shopId: shop.id, ...input, xofPerBtc: await ctx.rate.xofPerBtc() });
+    const order = await ctx.engine.createOrder({
+      shopId: shop.id, ...input, xofPerBtc: await ctx.rate.xofPerBtc(), sellerPayoutTo: payoutDestination(ctx.shops.getPayout(shop.id)),
+    });
     const clientToken = ctx.tokens.issue({ role: 'client', shopId: shop.id, orderId: order.id });
     return reply.status(201).send({ order: view(order, shop, 'seller'), clientToken });
   });
@@ -359,6 +397,24 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     if (ctx.config.mode !== 'simulation' || !ctx.simWallet) throw new HttpError(404, 'NOT_FOUND', 'Indisponible.');
     const { grant, order, shop } = await orderFor(req, ['client']);
     if (order.state !== 'AWAITING_PAYMENT' || !order.paymentHash) throw new EscrowError('ORDER_NOT_LOCKABLE');
+    await ctx.store.save({ ...order, payment: { method: 'lightning' } });
+    await ctx.simWallet.simulatePayment(order.paymentHash, order.amountMsat);
+    const updated = await ctx.store.get(order.id);
+    return view(updated!, shop, grant.role);
+  });
+
+  /**
+   * Paiement Mobile Money (simulation du partenaire de change, ex. Banxaas) :
+   * le client paie en FCFA, le partenaire paie la facture hold Lightning. L'argent est alors bloqué comme d'habitude.
+   * En production, cette route sera remplacée par le webhook du partenaire.
+   */
+  app.post('/api/orders/:id/pay/momo', async (req) => {
+    if (ctx.config.mode !== 'simulation' || !ctx.simWallet) throw new HttpError(404, 'NOT_FOUND', 'Indisponible.');
+    const { grant, order, shop } = await orderFor(req, ['client']);
+    if (shop.suspended) throw new HttpError(403, 'SHOP_SUSPENDED', 'Cette boutique est suspendue : ne payez pas cette commande.');
+    if (order.state !== 'AWAITING_PAYMENT' || !order.paymentHash) throw new EscrowError('ORDER_NOT_LOCKABLE');
+    const { operator, phone } = MomoPayInput.parse(req.body);
+    await ctx.store.save({ ...order, payment: { method: 'momo', operator, phoneHint: phone.slice(-2) } });
     await ctx.simWallet.simulatePayment(order.paymentHash, order.amountMsat);
     const updated = await ctx.store.get(order.id);
     return view(updated!, shop, grant.role);
@@ -375,9 +431,11 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       name: 'Pagnes de Fifamè (démo)', city: 'Cotonou', demo: true,
       pinHash: await hashPin(String(randomInt(100_000, 1_000_000))), // PIN aléatoire jamais communiqué
     });
+    const payout: ShopPayout = { method: 'momo', operator: 'MTN MoMo', phone: '0197000042' };
+    ctx.shops.setPayout(shop.id, payout);
     const order = await ctx.engine.createOrder({
       shopId: shop.id, itemLabel: '2 pagnes wax bleus', itemXof: 18_000, deliveryFeeXof: 1_500, deliveryHours: 6,
-      xofPerBtc: await ctx.rate.xofPerBtc(),
+      xofPerBtc: await ctx.rate.xofPerBtc(), sellerPayoutTo: payoutDestination(payout),
     });
     return reply.status(201).send({
       slug: shop.slug,

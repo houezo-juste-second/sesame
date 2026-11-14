@@ -1,5 +1,5 @@
 import { navigate } from '../router.js';
-import { Bag, Bike, KeyHole, Lock, Play, Store } from '../ui/icons.js';
+import { Bag, Bike, Lock, Play, Seed, Store } from '../ui/icons.js';
 import { Brand } from '../ui/kit.js';
 
 const go = (path: string) => (e: Event) => { e.preventDefault(); navigate(path); };
@@ -21,7 +21,7 @@ export function Home() {
       <main class="content fade-in" style="gap:28px">
         <section class="stack" style="gap:14px;padding-top:8px">
           <h1 class="display">Le client paie avant.<br />Vous êtes payée à la livraison.</h1>
-          <p class="lede">Le paiement à la livraison sans cash et sans fausse capture, pour les ventes sur WhatsApp, Instagram et TikTok.</p>
+          <p class="lede">Le paiement à la livraison sans cash et sans fausse capture, pour les ventes sur WhatsApp, Instagram et TikTok. Le client paie en Mobile Money, vous êtes payée en Mobile Money.</p>
         </section>
 
         <section class="chat" aria-label="Exemple : la commande envoyée au client sur WhatsApp">
@@ -29,7 +29,7 @@ export function Home() {
             <div class="who">Pagnes de Fifamè</div>
             Voici votre commande. Votre argent reste bloqué jusqu'à la livraison.
             <div class="preview" aria-hidden="true">
-              <div class="preview-head"><KeyHole size={16} /> Sésame</div>
+              <div class="preview-head"><Seed size={18} hole="#18205C" /> Sésame</div>
               <div class="preview-body">
                 <span class="small muted">2 pagnes wax bleus, livrés à Fidjrossè</span>
                 <strong class="num" style="font-size:20px">19 500 FCFA</strong>
@@ -85,7 +85,7 @@ export function Home() {
         <section class="trust">
           <span class="trust-icon"><Lock size={17} /></span>
           <p class="small muted" style="line-height:1.5">
-            <strong style="color:var(--ink)">Sésame ne garde jamais l'argent.</strong> Il est verrouillé par le réseau Bitcoin Lightning, et seul le client détient la clé qui le libère.
+            <strong style="color:var(--ink)">Pendant la livraison, personne ne peut prendre l'argent, pas même Sésame.</strong> En arrière-plan, il est verrouillé par le réseau Bitcoin Lightning, et seul le client détient la clé qui le libère. Vous n'avez pas besoin de connaître le bitcoin.
           </p>
         </section>
       </main>

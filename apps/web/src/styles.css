@@ -310,3 +310,8 @@ body.demo-on .banner-sim { display: none; }
 .message-preview { padding: 12px; border-radius: var(--r-m); }
 .message-preview .bubble { max-width: 100%; align-self: stretch; font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; }
 .msg-link { color: #1F6FB2; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Opérateurs Mobile Money */
+.operators { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.operators button { min-height: 48px; padding: 8px 6px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); font-weight: 700; font-size: 14px; line-height: 1.2; cursor: pointer; color: var(--ink); }
+.operators button[aria-pressed="true"] { border: 2px solid var(--indigo); background: var(--indigo-soft); color: var(--indigo-deep); }

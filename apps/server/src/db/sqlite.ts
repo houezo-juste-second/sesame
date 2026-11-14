@@ -62,6 +62,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE shops ADD COLUMN suspended INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE shops ADD COLUMN demo INTEGER NOT NULL DEFAULT 0;
   `,
+  // v3 : comment la vendeuse reçoit son argent (chiffré : contient un numéro de téléphone)
+  `
+  ALTER TABLE shops ADD COLUMN payout TEXT;
+  `,
 ];
 
 export type Db = DatabaseSync;

@@ -47,6 +47,17 @@ export const Copy = ({ size = 18, color = 'currentColor' }: P) => (
 export const KeyHole = ({ size = 18, color = '#F3AA3C' }: P) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9.5" r="4.5" fill={color} /><path d="M9.6 12.5h4.8L15.6 21H8.4z" fill={color} /></svg>
 );
+/** Logo : graine de sésame avec le trou de serrure taillé dedans. */
+export const Seed = ({ size = 20, color = '#F3AA3C', hole = '#283593' }: P & { hole?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+    <path d="M50 4C69 19 80 41 78 61c-2 18-13 33-28 33S24 79 22 61C20 41 31 19 50 4z" fill={color} />
+    <circle cx="50" cy="50" r="10" fill={hole} />
+    <path d="M44.8 56.5h10.4l3.6 18.5H41.2z" fill={hole} />
+  </svg>
+);
+export const Phone = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg {...base(size, color)} stroke-width={2}><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M10.5 18h3" /></svg>
+);
 export const Chevron = ({ size = 18, color = 'currentColor' }: P) => (
   <svg {...base(size, color)}><path d="M9 6l6 6-6 6" /></svg>
 );

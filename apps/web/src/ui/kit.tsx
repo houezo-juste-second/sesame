@@ -1,13 +1,13 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import QRCode from 'qrcode';
-import { Back, KeyHole } from './icons.js';
+import { Back, Seed } from './icons.js';
 import { navigate } from '../router.js';
 
 export function Brand() {
   return (
     <a class="brand" href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>
-      <span class="brand-mark"><KeyHole size={19} /></span>
+      <span class="brand-mark"><Seed size={24} /></span>
       Sésame
     </a>
   );

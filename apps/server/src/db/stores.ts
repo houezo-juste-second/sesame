@@ -6,7 +6,7 @@ import type { Order, OrderStore } from '../escrow/types.js';
 import { assertNoSecret, digest, GENESIS, type AuditEntry, type AuditInput, type AuditValue } from '../audit/log.js';
 import { hashToken, newToken, type Grant, type Role, type TokenRegistry } from '../auth.js';
 import type { SecretBox } from '../security/secretbox.js';
-import { slugify, type Shop, type ShopStore } from '../shops.js';
+import { slugify, type Shop, type ShopPayout, type ShopStore } from '../shops.js';
 import type { Db } from './sqlite.js';
 
 // ---------------------------------------------------------------- sérialisation (BigInt, Date)
@@ -128,6 +128,15 @@ export class SqliteShopStore implements ShopStore {
 
   setSuspended(id: string, suspended: boolean): void {
     this.db.prepare('UPDATE shops SET suspended = ? WHERE id = ?').run(suspended ? 1 : 0, id);
+  }
+
+  getPayout(id: string): ShopPayout | undefined {
+    const r = this.db.prepare('SELECT payout FROM shops WHERE id = ?').get(id) as { payout: string | null } | undefined;
+    return r?.payout ? (JSON.parse(this.box.open(r.payout)) as ShopPayout) : undefined;
+  }
+
+  setPayout(id: string, payout: ShopPayout): void {
+    this.db.prepare('UPDATE shops SET payout = ? WHERE id = ?').run(this.box.seal(JSON.stringify(payout)), id);
   }
 
   get(id: string): Shop | undefined {

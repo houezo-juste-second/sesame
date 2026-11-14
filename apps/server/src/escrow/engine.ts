@@ -84,6 +84,8 @@ export interface CreateOrderInput {
   deliveryHours: number;
   xofPerBtc: number;
   pro?: boolean;
+  /** Destination du versement vendeuse (Mobile Money via partenaire) ; absent : les sats restent dans son wallet. */
+  sellerPayoutTo?: string | undefined;
 }
 
 export interface EngineDeps {
@@ -155,6 +157,7 @@ export class EscrowEngine {
       feeXof,
       state: 'DRAFT',
       payouts: [],
+      ...(input.sellerPayoutTo ? { sellerPayoutTo: input.sellerPayoutTo } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -320,6 +323,11 @@ export class EscrowEngine {
     }
     if (order.feeMsat > 0n) {
       list.push({ kind: 'service_fee', destination: this.feeDestination, amountMsat: order.feeMsat, status: 'pending', attempts: 0 });
+    }
+    if (order.sellerPayoutTo) {
+      const courier = order.courierAddress ? order.courierMsat : 0n;
+      const net = order.amountMsat - courier - order.feeMsat;
+      if (net > 0n) list.push({ kind: 'seller', destination: order.sellerPayoutTo, amountMsat: net, status: 'pending', attempts: 0 });
     }
     return list;
   }

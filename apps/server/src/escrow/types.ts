@@ -42,6 +42,13 @@ export interface Order {
   pendingPreimage?: string | undefined;
   /** P après règlement : n'est plus secret, sert de preuve publique de paiement. */
   settledPreimage?: string | undefined;
+  /**
+   * Versement de la part vendeuse après la libération, quand elle ne garde pas les sats
+   * (ex. « momo:MTN MoMo:42 » = Mobile Money se terminant par 42). Le numéro complet reste chiffré dans la boutique.
+   */
+  sellerPayoutTo?: string | undefined;
+  /** Comment le client a payé (affichage, remboursement). Jamais le numéro complet. */
+  payment?: { method: 'momo' | 'lightning'; operator?: string | undefined; phoneHint?: string | undefined } | undefined;
   payouts: Payout[];
   createdAt: Date;
   updatedAt: Date;

@@ -4,8 +4,8 @@
  */
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import { encodeSesameQr, generateSesame, hashPreimage } from '@sesame/core';
-import { api, ApiError, clock, initials, linkToken, local, sats, subscribe, timeLeft, xof, type OrderView } from '../api.js';
-import { Check, Clock, Eye, Key, Lock, Shield } from '../ui/icons.js';
+import { api, ApiError, clock, initials, linkToken, local, MOMO_OPERATORS, sats, subscribe, timeLeft, xof, type OrderView } from '../api.js';
+import { Check, Clock, Eye, Key, Lock, Phone, Shield } from '../ui/icons.js';
 import { Brand, copyText, ErrorBox, Loading, Qr, SimBanner, Toast, TopBar, useNow, useToast } from '../ui/kit.js';
 
 const pKey = (id: string) => `sesame:p:${id}`;
@@ -78,6 +78,7 @@ export function ClientOrder({ id }: { id: string }) {
       case 'DRAFT': return <OrderScreen order={order} busy={busy} onPay={pay} />;
       case 'AWAITING_PAYMENT':
         return <PayScreen order={order} busy={busy} onDemoPay={() => act(() => api(`/api/demo/pay/${id}`, { token, body: {} }))}
+          onMomoPay={(operator, phone) => act(() => api(`/api/orders/${id}/pay/momo`, { token, body: { operator, phone } }))}
           onCopy={async () => showToast((await copyText(order.bolt11 ?? '')) ? 'Facture copiée' : 'Copie impossible')} />;
       case 'FUNDS_LOCKED':
       case 'OUT_FOR_DELIVERY':
@@ -145,31 +146,95 @@ function OrderScreen({ order, busy, onPay }: { order: OrderView; busy: boolean; 
       </main>
       <footer class="bottom">
         <button class="btn primary" disabled={busy} onClick={onPay}><Lock /> Payer {xof(order.totalXof)}</button>
-        <div class="tiny muted center">Avec n'importe quel wallet Bitcoin Lightning</div>
+        <div class="tiny muted center">En Mobile Money (MTN, Moov, Wave, Orange…) ou avec un wallet Lightning</div>
       </footer>
     </>
   );
 }
 
-function PayScreen({ order, busy, onDemoPay, onCopy }: { order: OrderView; busy: boolean; onDemoPay: () => void; onCopy: () => void }) {
-  const now = useNow(15_000);
-  const invoice = order.bolt11 ?? '';
+function PayScreen({ order, busy, onDemoPay, onMomoPay, onCopy }: {
+  order: OrderView; busy: boolean; onDemoPay: () => void; onMomoPay: (operator: string, phone: string) => void; onCopy: () => void;
+}) {
+  const [method, setMethod] = useState<'momo' | 'lightning'>('momo');
   return (
     <>
       <TopBar subtitle={order.shopName} title={`Payer ${xof(order.totalXof)}`} />
       <main class="content fade-in">
-        <section class="card stack" style="align-items:center;text-align:center">
-          <div class="qr-box large"><Qr text={`lightning:${invoice.toUpperCase()}`} label="QR de paiement Lightning" /></div>
-          <div class="big-amount" style="font-size:20px">{sats(order.amountSat)}</div>
-          <div class="small muted">Scannez avec votre wallet (Wallet of Satoshi, Phoenix, Blink…). La facture expire dans {timeLeft(order.invoiceExpiresAt, now)}.</div>
-        </section>
-        <a class="btn primary" href={`lightning:${invoice}`}>Ouvrir mon wallet</a>
-        <button class="btn ghost" onClick={onCopy}>Copier la facture</button>
-        {order.simulation && (
-          <button class="btn saffron" disabled={busy} onClick={onDemoPay}>Payer avec le wallet de démo</button>
-        )}
-        <div class="tiny muted center">Après le paiement, cette page se met à jour toute seule.</div>
+        <div class="segmented" role="group" aria-label="Moyen de paiement">
+          <button type="button" aria-pressed={method === 'momo'} onClick={() => setMethod('momo')}>Mobile Money</button>
+          <button type="button" aria-pressed={method === 'lightning'} onClick={() => setMethod('lightning')}>Wallet Lightning</button>
+        </div>
+        {method === 'momo'
+          ? <MomoPay order={order} busy={busy} onPay={onMomoPay} />
+          : <LightningPay order={order} busy={busy} onDemoPay={onDemoPay} onCopy={onCopy} />}
       </main>
+    </>
+  );
+}
+
+function MomoPay({ order, busy, onPay }: { order: OrderView; busy: boolean; onPay: (operator: string, phone: string) => void }) {
+  const [operator, setOperator] = useState<string>('MTN MoMo');
+  const [phone, setPhone] = useState('');
+  const [sent, setSent] = useState(false);
+  const digits = phone.replace(/\D/g, '');
+  const valid = digits.length >= 8 && digits.length <= 15;
+
+  if (sent) {
+    return (
+      <section class="card stack" style="align-items:center;text-align:center;gap:12px">
+        <span class="trust-icon" style="width:52px;height:52px"><Phone size={24} color="#fff" /></span>
+        <h2>Validez sur votre téléphone</h2>
+        <p class="small muted">
+          Une demande de paiement de <strong>{xof(order.totalXof)}</strong> a été envoyée à votre compte {operator} se terminant par {digits.slice(-2)}.
+          Confirmez-la avec votre code secret.
+        </p>
+        {order.simulation && (
+          <button class="btn saffron" disabled={busy} onClick={() => onPay(operator, phone)}>J'ai validé sur mon téléphone (simulation)</button>
+        )}
+        <button class="btn quiet" onClick={() => setSent(false)}>Changer de numéro</button>
+      </section>
+    );
+  }
+  return (
+    <form class="stack" style="gap:14px" onSubmit={(e) => { e.preventDefault(); if (valid) setSent(true); }}>
+      <div class="field">
+        <span class="label" id="op">Votre opérateur</span>
+        <div class="operators" role="group" aria-labelledby="op">
+          {MOMO_OPERATORS.map((o) => (
+            <button type="button" key={o} aria-pressed={operator === o} onClick={() => setOperator(o)}>{o}</button>
+          ))}
+        </div>
+      </div>
+      <div class="field">
+        <label for="phone">Numéro Mobile Money</label>
+        <input id="phone" class="input" type="tel" inputMode="tel" autocomplete="tel" placeholder="97 00 00 00" value={phone}
+          onInput={(e) => setPhone((e.target as HTMLInputElement).value)} required />
+      </div>
+      <div class="trust">
+        <span class="trust-icon"><Shield size={17} /></span>
+        <p class="small muted">L'argent reste bloqué jusqu'à la livraison. Sans livraison, il revient sur ce même compte {operator}.</p>
+      </div>
+      <button class="btn primary" disabled={busy || !valid}>Payer {xof(order.totalXof)} avec {operator}</button>
+    </form>
+  );
+}
+
+function LightningPay({ order, busy, onDemoPay, onCopy }: { order: OrderView; busy: boolean; onDemoPay: () => void; onCopy: () => void }) {
+  const now = useNow(15_000);
+  const invoice = order.bolt11 ?? '';
+  return (
+    <>
+      <section class="card stack" style="align-items:center;text-align:center">
+        <div class="qr-box large"><Qr text={`lightning:${invoice.toUpperCase()}`} label="QR de paiement Lightning" /></div>
+        <div class="big-amount" style="font-size:20px">{sats(order.amountSat)}</div>
+        <div class="small muted">Scannez avec votre wallet (Wallet of Satoshi, Phoenix, Blink…). La facture expire dans {timeLeft(order.invoiceExpiresAt, now)}.</div>
+      </section>
+      <a class="btn primary" href={`lightning:${invoice}`}>Ouvrir mon wallet</a>
+      <button class="btn ghost" onClick={onCopy}>Copier la facture</button>
+      {order.simulation && (
+        <button class="btn saffron" disabled={busy} onClick={onDemoPay}>Payer avec le wallet de démo</button>
+      )}
+      <div class="tiny muted center">Après le paiement, cette page se met à jour toute seule.</div>
     </>
   );
 }
@@ -190,6 +255,7 @@ function SesameScreen({ order, preimage, busy, onReceived, onCopy }: {
           <div>
             <h3>Paiement sécurisé</h3>
             <div class="small">{enRoute ? 'Votre colis est en route.' : 'Votre argent est bloqué. La vendeuse prépare le colis.'}</div>
+            {order.payment?.method === 'momo' && <div class="tiny">Payé avec {order.payment.operator} •• {order.payment.phoneHint}</div>}
           </div>
         </section>
 
@@ -261,7 +327,13 @@ function SesameScreen({ order, preimage, busy, onReceived, onCopy }: {
 function DoneScreen({ order }: { order: OrderView }) {
   const content = {
     RELEASED: { title: 'Livraison confirmée', text: `Merci ! ${order.shopName} a été payée. Bonne utilisation de votre achat.`, ok: true },
-    REFUNDED: { title: 'Vous avez été remboursé', text: "La livraison n'a pas été confirmée à temps : votre wallet a récupéré la totalité du paiement.", ok: false },
+    REFUNDED: {
+      title: 'Vous avez été remboursé',
+      text: order.payment?.method === 'momo'
+        ? `La livraison n'a pas été confirmée à temps : la totalité du paiement revient sur votre ${order.payment.operator} •• ${order.payment.phoneHint}.`
+        : "La livraison n'a pas été confirmée à temps : votre wallet a récupéré la totalité du paiement.",
+      ok: false,
+    },
     EXPIRED: { title: 'Commande expirée', text: "La facture n'a pas été payée à temps. Aucun argent n'a été prélevé.", ok: false },
   }[order.state as 'RELEASED' | 'REFUNDED' | 'EXPIRED'] ?? { title: order.stateLabel, text: '', ok: false };
   return (
