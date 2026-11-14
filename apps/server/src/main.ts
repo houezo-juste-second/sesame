@@ -25,7 +25,10 @@ const ctx = createServerContext({
   nostrRelays: env.SESAME_NOSTR_RELAYS ? env.SESAME_NOSTR_RELAYS.split(',').map((r) => r.trim()).filter(Boolean) : [],
   onError: (e) => console.error('[sesame] reçu Nostr non émis :', e instanceof Error ? e.message : e),
   fixedXofPerBtc: env.SESAME_FIXED_RATE ? Number(env.SESAME_FIXED_RATE) : undefined,
-  llm: { baseUrl: env.SESAME_AI_BASE_URL, apiKey: env.SESAME_AI_API_KEY, model: env.SESAME_AI_MODEL },
+  // LLM seulement avec une clé, ou un serveur local (Ollama) ; sinon règles locales.
+  llm: env.SESAME_AI_API_KEY || /^https?:\/\/(localhost|127\.0\.0\.1)/.test(env.SESAME_AI_BASE_URL ?? '')
+    ? { baseUrl: env.SESAME_AI_BASE_URL, apiKey: env.SESAME_AI_API_KEY || undefined, model: env.SESAME_AI_MODEL }
+    : {},
 });
 const app = buildApp(ctx, { logger: true });
 
