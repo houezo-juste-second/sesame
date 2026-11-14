@@ -305,3 +305,8 @@ body.demo-on .banner-sim { display: none; }
 .bar-fill.RELEASED { background: var(--leaf); }
 .bar-fill.REFUNDED { background: var(--clay); }
 .shop-row { padding: 14px 16px 8px; display: flex; flex-direction: column; gap: 4px; }
+
+/* Aperçu du message WhatsApp (vendeuse) */
+.message-preview { padding: 12px; border-radius: var(--r-m); }
+.message-preview .bubble { max-width: 100%; align-self: stretch; font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.msg-link { color: #1F6FB2; text-decoration: underline; text-underline-offset: 2px; }

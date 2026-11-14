@@ -5,6 +5,7 @@ import { api, ApiError, initials, local, SELLER_KEY, subscribe, xof, type OrderV
 import { navigate } from '../router.js';
 import { Chevron, Logout, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
 import { copyText, ErrorBox, Loading, SimBanner, Toast, TopBar, useToast, whatsappUrl } from '../ui/kit.js';
+import { clientMessage, courierMessage } from '../ui/messages.js';
 
 const clientTokKey = (id: string) => `sesame:ctok:${id}`;
 const courierTokKey = (id: string) => `sesame:ltok:${id}`;
@@ -325,9 +326,9 @@ export function SellerOrder({ id }: { id: string }) {
     finally { setBusy(false); }
   }
 
-  const clientMsg = `Bonjour ! Voici votre commande « ${order.itemLabel} » chez ${order.shopName} : ${xof(order.totalXof)}. ` +
-    `Payez en toute sécurité : votre argent reste bloqué jusqu'à la livraison, sinon vous êtes remboursé automatiquement. ${clientLink}`;
-  const courierMsg = `Mission Sésame : livrer « ${order.itemLabel} ». Votre course : ${xof(order.deliveryFeeXof)}, payée dès le scan du sésame du client. ${courierLink}`;
+  const clientMsg = clientLink ? clientMessage(order, clientLink) : '';
+  const courierMsg = courierLink ? courierMessage(order, courierLink) : '';
+  const copy = async (text: string) => showToast((await copyText(text)) ? 'Message copié' : 'Copie impossible');
 
   return (
     <div class="screen">
@@ -346,8 +347,9 @@ export function SellerOrder({ id }: { id: string }) {
         {clientLink && (order.state === 'DRAFT' || order.state === 'AWAITING_PAYMENT') && (
           <section class="card stack">
             <h3>Envoyez le lien de paiement au client</h3>
+            <MessagePreview text={clientMsg} />
             <a class="btn success" href={whatsappUrl(clientMsg)} target="_blank" rel="noopener noreferrer"><WhatsApp /> Envoyer sur WhatsApp</a>
-            <button class="btn ghost" onClick={async () => showToast((await copyText(clientLink)) ? 'Lien copié' : 'Copie impossible')}>Copier le lien</button>
+            <button class="btn ghost" onClick={() => void copy(clientMsg)}>Copier le message</button>
           </section>
         )}
 
@@ -369,8 +371,9 @@ export function SellerOrder({ id }: { id: string }) {
         {courierLink && order.state === 'OUT_FOR_DELIVERY' && (
           <section class="card stack">
             <h3>Envoyez sa mission au livreur</h3>
+            <MessagePreview text={courierMsg} />
             <a class="btn success" href={whatsappUrl(courierMsg)} target="_blank" rel="noopener noreferrer"><WhatsApp /> Envoyer au livreur</a>
-            <button class="btn ghost" onClick={async () => showToast((await copyText(courierLink)) ? 'Lien copié' : 'Copie impossible')}>Copier le lien</button>
+            <button class="btn ghost" onClick={() => void copy(courierMsg)}>Copier le message</button>
           </section>
         )}
 
@@ -390,6 +393,23 @@ export function SellerOrder({ id }: { id: string }) {
         {error && <ErrorBox message={error} />}
       </main>
       <Toast text={toast} />
+    </div>
+  );
+}
+
+/** Aperçu du message tel qu'il apparaîtra dans WhatsApp (*gras* rendu, lien raccourci). */
+function MessagePreview({ text }: { text: string }) {
+  const lines = text.split('\n');
+  return (
+    <div class="chat message-preview" aria-label="Aperçu du message">
+      <div class="bubble mine">
+        {lines.map((line, i) => {
+          if (/^https?:\/\//.test(line)) return <div key={i} class="msg-link">{line.replace(/#.*$/, '').replace(/^https?:\/\//, '')}…</div>;
+          if (!line) return <div key={i} style="height:8px" />;
+          const parts = line.split(/(\*[^*]+\*)/g);
+          return <div key={i}>{parts.map((p, j) => (p.startsWith('*') && p.endsWith('*') && p.length > 2 ? <strong key={j}>{p.slice(1, -1)}</strong> : p))}</div>;
+        })}
+      </div>
     </div>
   );
 }
