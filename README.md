@@ -91,7 +91,7 @@ Tout ce qui est simulé est signalé à l'écran par un bandeau « Démonstratio
 | Délai médian entre paiement et libération | Rapidité de la livraison |
 | Part Mobile Money / Lightning | Dépendance au partenaire |
 | Versements en échec, remboursements en retard | Fiabilité (alertes de l'administration) |
-| Temps de chargement en 3G, taille de l'application (≈ 33 Ko) | Accessibilité sur téléphones modestes |
+| Temps de chargement en 3G, taille de l'application (≈ 35 Ko) | Accessibilité sur téléphones modestes |
 
 **Portée visée (hypothèse à valider) :** 20 vendeuses pilotes à Dakar et Cotonou, 10 commandes chacune par semaine, soit 200 livraisons sans cash par semaine au bout de trois mois.
 

@@ -31,7 +31,7 @@ Seule la vendeuse a un compte. Le client et le livreur reçoivent un simple lien
 - **Bitcoin Lightning, factures hold :** le téléphone du client génère un secret P et n'envoie que son empreinte H = SHA-256(P). La facture est liée à H : elle ne peut être encaissée qu'avec P, et elle est annulée automatiquement à l'échéance. Pendant la livraison, personne ne peut prendre l'argent, pas même Sésame.
 - **Mobile Money en façade :** un partenaire de change (Banxaas, simulé dans la démo) convertit les FCFA du client en sats et paie la facture, puis verse la part de la vendeuse sur son Mobile Money.
 - **Nostr (NIP-78) :** reçus signés par la boutique, vérifiés directement dans le navigateur.
-- **Stack 100 % gratuite et open source :** TypeScript, Preact (PWA ≈ 33 Ko de JavaScript compressé, pensée pour la 3G), Fastify, SQLite intégré à Node.js, Zod. IA de remplissage : règles locales, LLM gratuit optionnel.
+- **Stack 100 % gratuite et open source :** TypeScript, Preact (PWA ≈ 35 Ko de JavaScript compressé, pensée pour la 3G), Fastify, SQLite intégré à Node.js, Zod. IA de remplissage : règles locales, LLM gratuit optionnel.
 - **Sécurité dès la conception :** modèle de menaces documenté, jetons hachés, secrets et numéros chiffrés (AES-256-GCM), PIN en scrypt, limitation des essais, CSP stricte, journal d'audit chaîné qui refuse les secrets, aucune donnée personnelle dans les journaux. 114 tests automatisés.
 - **Administration** en lecture seule : volume, frais, alertes, vérification du journal d'audit, suspension d'une boutique, sans aucun pouvoir sur l'argent.
 
@@ -81,7 +81,7 @@ Only the seller has an account. Buyer and courier just get a WhatsApp link. A gu
 - **Bitcoin Lightning hold invoices:** the buyer's phone generates a secret P and only sends its hash H = SHA-256(P). The invoice is tied to H: it can only be settled with P, and it is cancelled automatically at the deadline. During delivery, nobody can take the money, not even Sésame.
 - **Mobile Money on the front:** an exchange partner (Banxaas, simulated in the demo) converts the buyer's CFA francs to sats and pays the invoice, then pays the seller's share out to her Mobile Money.
 - **Nostr (NIP-78):** receipts signed by the shop and verified in the browser.
-- **100% free and open-source stack:** TypeScript, Preact (PWA, about 33 KB of gzipped JavaScript, built for 3G), Fastify, Node's built-in SQLite, Zod. Order autofill: local rules, optional free LLM.
+- **100% free and open-source stack:** TypeScript, Preact (PWA, about 35 KB of gzipped JavaScript, built for 3G), Fastify, Node's built-in SQLite, Zod. Order autofill: local rules, optional free LLM.
 - **Security by design:** documented threat model, hashed tokens, encrypted secrets and phone numbers (AES-256-GCM), scrypt PINs, rate limits, strict CSP, hash-chained audit log that rejects secrets, no personal data in logs. 114 automated tests.
 - **Admin dashboard,** read-only: volume, fees, alerts, audit-log verification and shop suspension, with no power over funds.
 
