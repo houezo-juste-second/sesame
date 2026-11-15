@@ -64,7 +64,7 @@ p { margin: 0; }
 /* ------------------------------------------------------------ structure */
 .screen { flex: 1; display: flex; flex-direction: column; min-height: 100dvh; }
 .screen.night { background: var(--indigo-night); color: #fff; }
-.top { display: flex; align-items: center; gap: 12px; padding: max(14px, env(safe-area-inset-top)) 20px 6px; min-height: 64px; }
+.top { flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: max(14px, env(safe-area-inset-top)) 20px 6px; min-height: 64px; }
 .top.stacked { flex-direction: column; align-items: stretch; gap: 12px; }
 .top .grow h2 { overflow-wrap: anywhere; }
 .grow { flex: 1; min-width: 0; }

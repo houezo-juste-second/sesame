@@ -66,7 +66,7 @@ export function CourierMission({ id }: { id: string }) {
     return (
       <div class="screen">
         <SimBanner show={order.simulation} />
-        <main class="content center fade-in" style="justify-content:center;gap:18px">
+        <main class="content center fade-in" style="justify-content:safe center;gap:18px">
           <div class="success-burst"><div><Check size={38} /></div></div>
           <h1>Livraison confirmée</h1>
           <p class="muted" style="margin:0;line-height:1.5">Vous pouvez remettre le colis. La vendeuse vient d'être payée.</p>
@@ -103,7 +103,7 @@ export function CourierMission({ id }: { id: string }) {
         </div>
       </header>
 
-      <main class="content" style="justify-content:center;align-items:center;gap:22px">
+      <main class="content" style="justify-content:safe center;align-items:center;gap:22px">
         {ready ? (
           <>
             {scanning && Scanner ? (

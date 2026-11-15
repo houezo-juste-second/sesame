@@ -344,7 +344,7 @@ function DoneScreen({ order }: { order: OrderView }) {
   return (
     <>
       <header class="top"><Brand /></header>
-      <main class="content center fade-in" style="justify-content:center;gap:18px">
+      <main class="content center fade-in" style="justify-content:safe center;gap:18px">
         <div class="success-burst" style={content.ok ? '' : 'background:var(--indigo-soft)'}>
           <div style={content.ok ? '' : 'background:var(--indigo)'}>{content.ok ? <Check size={38} /> : <Shield size={34} />}</div>
         </div>

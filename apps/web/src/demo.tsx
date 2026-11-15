@@ -58,7 +58,7 @@ export function DemoStart() {
   }, []);
   return (
     <div class="screen">
-      <main class="content" style="justify-content:center;align-items:center;text-align:center;gap:14px">
+      <main class="content" style="justify-content:safe center;align-items:center;text-align:center;gap:14px">
         {error ? (
           <>
             <ErrorBox message={error} />
