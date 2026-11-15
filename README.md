@@ -1,139 +1,146 @@
 # Sésame
 
-**Le paiement à la livraison, sans cash et sans fausse capture d'écran.**
+**Cash on delivery, without the cash and without fake payment screenshots.**
 
-Au Sénégal comme au Bénin, on vend sur WhatsApp, Instagram et TikTok, mais personne ne se fait confiance : le client refuse de payer d'avance, la vendeuse reçoit de fausses captures de paiement et des commandes annulées à la porte, le livreur transporte du cash. Sésame règle ça : **le client paie avant la livraison (en Mobile Money), l'argent reste bloqué, et il n'est libéré que lorsque le client, colis en main, montre son « sésame » au livreur.** Sans livraison, il est remboursé automatiquement.
+*[Version française](README.fr.md)*
 
-En arrière-plan, le blocage est garanti par une **facture hold du réseau Bitcoin Lightning** : pendant la livraison, personne ne peut prendre l'argent, pas même Sésame.
+In Senegal and Benin, a lot of retail happens on WhatsApp, Instagram and TikTok, but nobody trusts anybody. Buyers won't pay upfront for fear of receiving nothing. Sellers get fake Mobile Money screenshots and orders cancelled at the door. Couriers carry cash. Sésame fixes this: **the buyer pays before delivery, the money stays locked, and it is only released when the buyer, parcel in hand, shows their "sésame" (a secret QR code) to the courier.** If nothing is delivered in time, the buyer is refunded automatically.
 
-> Projet soumis au **Dakar Bitcoin Hack 2026 by BTrust**.
-> **Démo en ligne :** https://sesame-1j54.onrender.com (bouton « Essayer les 3 rôles en 2 minutes », sans compte). Hébergement gratuit : le premier chargement peut prendre une minute.
+Underneath, the lock is a **Bitcoin Lightning hold invoice**: during delivery, nobody can take the money, not even Sésame.
 
-## Qui fait quoi
+> Submitted to the **Dakar Bitcoin Hack 2026 by Btrust**.
+> **Live demo:** https://sesame-1j54.onrender.com (tap "Essayer les 3 rôles en 2 minutes": all three roles, no account). Free hosting: the first load can take about a minute.
+> **Demo video (3 min):** see the Devpost page.
+> The app interface is in **French**, the language of our users in Senegal and Benin. The code, docs and pitch are in English.
 
-| Acteur | Ce qu'il fait | Compte ? |
+## Who does what
+
+| Actor | What they do | Account? |
 |---|---|---|
-| **Vendeuse** | Colle la conversation WhatsApp (la commande se remplit seule), envoie le lien de paiement, puis la mission au livreur. Reçoit son argent en Mobile Money à la livraison. | Oui (boutique + PIN) |
-| **Client** | Ouvre le lien, paie en Mobile Money (ou wallet Lightning). À la livraison, vérifie le colis puis montre son sésame. | Non : un lien WhatsApp |
-| **Livreur** | Ouvre le lien de mission, voit que le client a déjà payé, scanne le sésame, reçoit sa course aussitôt. | Non : un lien WhatsApp |
-| **Administrateur** | Suit l'activité, les alertes et le journal d'audit ; peut suspendre une boutique. **Ne peut jamais toucher à l'argent.** | Code d'accès |
+| **Seller** | Pastes the WhatsApp conversation (the order fills itself in), sends the payment link, then the delivery mission. Connects **her own Lightning wallet** (Nostr Wallet Connect). | Yes (shop + PIN) |
+| **Buyer** | Opens the link and pays from **their own Lightning wallet** (Mobile Money coming via an exchange partner). On delivery, checks the parcel, then shows the sésame. | No: a WhatsApp link |
+| **Courier** | Opens the mission link, sees the buyer has already paid, scans the sésame, gets paid instantly to his Lightning address. | No: a WhatsApp link |
+| **Admin** | Monitors activity, alerts and the audit log; can suspend a shop. **Can never touch the money.** | Access code |
 
-## Comment ça marche
+## How it works
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant C as Client (téléphone)
-  participant P as Partenaire Mobile Money ↔ Lightning
-  participant S as Serveur Sésame
-  participant W as Facture hold (Lightning)
-  participant L as Livreur
-  C->>C: génère le sésame P, calcule H = SHA-256(P)
-  C->>S: H uniquement
-  S->>W: facture hold liée à H
-  C->>P: paie en Mobile Money
-  P->>W: paie la facture : les fonds sont BLOQUÉS
-  Note over C,L: livraison, le client vérifie le colis
-  C->>L: montre le QR du sésame (P)
-  L->>S: P
-  S->>W: règle la facture avec P
-  W-->>P: part vendeuse convertie en FCFA → Mobile Money de la vendeuse
-  Note over S,W: sans P avant l'échéance : annulation, le client est remboursé
+  participant B as Buyer (phone)
+  participant S as Sésame server
+  participant W as Seller's wallet (NWC)
+  participant C as Courier
+  B->>B: generates secret P, computes H = SHA-256(P)
+  B->>S: H only
+  S->>W: make_hold_invoice(H)
+  W-->>B: Lightning invoice (QR)
+  B->>W: pays from own wallet: funds LOCKED (hold_invoice_accepted)
+  Note over B,C: delivery, buyer checks the parcel
+  B->>C: shows the sésame QR (P)
+  C->>S: P
+  S->>W: settle_hold_invoice(P): seller is paid
+  S->>W: pay courier's Lightning address
+  Note over S,W: no P before the deadline: cancel_hold_invoice, buyer refunded
 ```
 
-Détails : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Lancer en une commande
+## Real Lightning wallet integration (not simulated)
 
-Prérequis : **Node.js 22.13+** (aucun Docker, aucune base de données à installer).
+- **The seller connects her own wallet** with **Nostr Wallet Connect** (NIP-47), e.g. Alby Hub: paste or scan a `nostr+walletconnect://` code in "Mon wallet Lightning". Sésame checks the wallet supports hold invoices, then stores the code **encrypted**.
+- **Hold invoices are created, settled and cancelled in HER wallet** (`make_hold_invoice`, `settle_hold_invoice`, `cancel_hold_invoice`, `hold_invoice_accepted` notification, with polling as a fallback). The money lands in her wallet, never with Sésame.
+- **The buyer pays from any Lightning wallet** by scanning the QR.
+- **The courier is paid** from the seller's wallet to his Lightning address (LNURL-pay).
+- **Verified live on 15 November 2026** with free test wallets running on a real Alby Hub ([faucet.nwc.dev](https://faucet.nwc.dev)): payment locked, settled with the sésame (seller received the sats), and full refund on cancel. Reproduce it: `npm run nwc:check`, `npm run nwc:check -- --cancel`, `npm run nwc:e2e -- http://127.0.0.1:8080`.
+
+## Run it in one command
+
+Requirements: **Node.js 22.13+** (no Docker, no database to install).
 
 ```bash
-npm run demo        # installe, compile, démarre sur http://127.0.0.1:8080 (mode simulation)
+npm run demo        # installs, builds, starts on http://127.0.0.1:8080
 ```
 
-Données de démonstration incluses :
-- **Parcours complet guidé :** page d'accueil, bouton « Essayer les 3 rôles » (boutique jetable, aucun compte).
-- **Espace vendeuse :** `/v`, boutique `pagnes-de-fifame`, PIN `2026` (modifiable via `SESAME_DEMO_PIN`).
-- **Réputation publique vérifiable :** `/verify/pagnes-de-fifame`.
-- **Administration :** `/admin`, activée en définissant `SESAME_ADMIN_CODE` (8 caractères min.).
+Seed data included:
+- **Guided demo of the three roles:** home page, "Essayer les 3 rôles" button (throwaway shop, simulated payments).
+- **Seller space:** `/v`, shop `pagnes-de-fifame`, PIN `2026` (set `SESAME_DEMO_PIN` to change it).
+- **Public verifiable reputation:** `/verify/pagnes-de-fifame`.
+- **Admin:** `/admin`, enabled by setting `SESAME_ADMIN_CODE` (8+ characters).
 
-### Avec un vrai wallet Lightning (gratuit, sats de test)
+### With a real Lightning wallet (free test sats)
 
-1. Créez un wallet de test gratuit sur https://faucet.nwc.dev (il fonctionne sur un vrai Alby Hub) : vous obtenez un code `nostr+walletconnect://…`.
-2. Espace vendeuse → **Mon wallet Lightning** → collez le code. Le wallet est vérifié (factures hold prises en charge) puis branché.
-3. Créez une commande : la facture hold est créée **dans ce wallet**. Payez-la depuis un autre wallet Lightning (un second wallet du faucet, ou le vôtre).
-4. Libérez avec le sésame : les sats arrivent dans le wallet de la vendeuse. Sans livraison : annulation, le payeur est remboursé.
+1. Get a free test wallet at https://faucet.nwc.dev (it runs on a real Alby Hub): you receive a `nostr+walletconnect://…` code.
+2. Seller space → **Mon wallet Lightning** → paste the code. The wallet is checked (hold invoice support) and connected.
+3. Create an order: the hold invoice is created **in that wallet**. Pay it from another Lightning wallet (a second faucet wallet, or your own).
+4. Release with the sésame: the sats arrive in the seller's wallet. No delivery: cancel, the payer is refunded.
 
-Vérification automatique, sans interface : `npm run nwc:check` (facture hold bloquée puis réglée ; `-- --cancel` pour le remboursement) et `npm run nwc:e2e -- http://127.0.0.1:8080` (parcours complet à travers l'application). Résultat obtenu le 15 novembre 2026 : paiement bloqué, réglé avec le sésame, et remboursement complet en cas d'annulation.
+Other commands: `npm test` (122 tests), `npm run typecheck`, `npm run dev:server` + `npm run dev:web`. Configuration: [.env.example](.env.example). Free deployment (Render or Oracle Cloud): [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) (French).
 
-Autres commandes : `npm test` (114 tests), `npm run typecheck`, `npm run dev:server` + `npm run dev:web`. Configuration : [.env.example](.env.example). Mise en ligne gratuite : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
+## Status (honest)
 
-## État d'avancement (honnête)
-
-| Composant | État |
+| Component | Status |
 |---|---|
-| Protocole sésame (P/H), montants FCFA ↔ msat, machine à états, moteur de séquestre | ✅ testé |
-| API, temps réel (SSE), SQLite (secrets chiffrés), journal d'audit chaîné | ✅ testé |
-| Application web mobile : vendeuse, client, livreur, démo guidée, administration | ✅ parcours complet vérifié (360 et 412 px) |
-| Reçus Nostr signés + page de réputation vérifiée dans le navigateur | ✅ testé |
-| Remplissage de commande depuis une conversation (règles locales, LLM gratuit optionnel) | ✅ testé |
-| Paiement Mobile Money et versement vendeuse | 🟡 **simulés** (partenaire visé : Banxaas, pas d'API publique à ce jour) |
-| **Wallet Lightning de la vendeuse (Nostr Wallet Connect)** | ✅ « Mon wallet Lightning » : la vendeuse branche son propre wallet (ex. Alby Hub) ; factures hold créées, réglées et annulées dans SON wallet, livreur payé à son adresse Lightning. Testé avec le vrai protocole NIP-47 (signatures, chiffrement NIP-44 / NIP-04) |
-| Client | ✅ paie avec son propre wallet Lightning (QR / lien `lightning:`) pour une boutique branchée |
-| Boutiques sans wallet branché, démo guidée | 🟡 wallet simulé, signalé à l'écran |
+| Sésame protocol (P/H), CFA franc ↔ msat amounts, state machine, escrow engine | ✅ tested |
+| API, real-time updates (SSE), SQLite (encrypted secrets), hash-chained audit log | ✅ tested |
+| Mobile web app: seller, buyer, courier, guided demo, admin | ✅ full flow checked (360 and 412 px wide) |
+| **Seller's Lightning wallet via Nostr Wallet Connect, real hold invoices** | ✅ tested with the real NIP-47 protocol and **verified live** on Alby Hub |
+| Signed Nostr receipts + reputation page verified in the browser | ✅ tested |
+| Order autofill from a WhatsApp conversation (local rules, optional free LLM) | ✅ tested |
+| Mobile Money payment and seller payout | 🟡 **simulated** (target partner: Banxaas, no public API yet) |
+| Shops without a connected wallet, guided demo | 🟡 simulated wallet, labelled on screen |
 
-Tout ce qui est simulé est signalé à l'écran par un bandeau « Démonstration ».
+## Constraints and known limits
 
-## Contraintes et limites connues
+- **Mobile Money ↔ bitcoin conversion** requires a licensed partner in each WAEMU country. Sésame does not do it itself. Banxaas covers Senegal, Côte d'Ivoire, Cameroon and Guinea, **not Benin yet**.
+- **Hold invoices tie up Lightning liquidity**, so the delivery window is capped at 12 hours.
+- **NWC hold invoices** are a NIP-47 extension (proposal) supported by Alby Hub; few wallets support it today.
+- **To pay the courier, the seller authorises payments** in her wallet: Sésame can then spend within the **budget** she sets (recommended in the UI).
+- **The 1% fee is accounted for but not yet collected** on real-wallet orders.
+- **Disputes after delivery** (faulty product) are not covered in V1: the buyer checks before showing the sésame.
+- **Free hosting (Render):** sleeps after 15 minutes, data reset on restart.
 
-- **Conversion Mobile Money ↔ bitcoin :** elle exige un partenaire agréé dans chaque pays de l'UEMOA. Sésame ne la fait pas lui-même. Banxaas couvre le Sénégal, la Côte d'Ivoire, le Cameroun et la Guinée, **pas encore le Bénin**.
-- **Qui reçoit les sats à la libération :** idéalement le partenaire lui-même (Sésame ne touche alors jamais l'argent). À défaut, un nœud Sésame les reçoit quelques secondes avant le versement Mobile Money, ce qui demanderait un cadre réglementaire. Voir [ARCHITECTURE](docs/ARCHITECTURE.md#qui-recoit-les-sats).
-- **Durée de blocage :** une facture hold immobilise de la liquidité Lightning ; le délai de livraison est donc limité à 12 h.
-- **Litiges après livraison** (produit défectueux) : non couverts en V1, le client vérifie avant de donner son sésame.
-- **Hébergement gratuit (Render) :** mise en veille après 15 min, données effacées au redémarrage.
+## Metrics to track
 
-## Indicateurs à suivre
-
-| Indicateur | Pourquoi |
+| Metric | Why |
 |---|---|
-| Vendeuses actives par semaine, commandes par vendeuse | Adoption réelle |
-| Taux de paiement (commandes payées / liens envoyés) | Le client accepte-t-il de payer d'avance ? |
-| Taux de livraison réussie (libérées / libérées + remboursées) | Promesse tenue |
-| Délai médian entre paiement et libération | Rapidité de la livraison |
-| Part Mobile Money / Lightning | Dépendance au partenaire |
-| Versements en échec, remboursements en retard | Fiabilité (alertes de l'administration) |
-| Temps de chargement en 3G, taille de l'application (≈ 35 Ko) | Accessibilité sur téléphones modestes |
+| Weekly active sellers, orders per seller | Real adoption |
+| Payment rate (paid orders / links sent) | Do buyers accept paying upfront? |
+| Successful delivery rate (released / released + refunded) | Promise kept |
+| Median time from payment to release | Delivery speed |
+| Mobile Money vs Lightning share | Partner dependency |
+| Failed payouts, overdue refunds | Reliability (admin alerts) |
+| Load time on 3G, app size (about 36 KB gzipped JS) | Access on entry-level phones |
 
-**Portée visée (hypothèse à valider) :** 20 vendeuses pilotes à Dakar et Cotonou, 10 commandes chacune par semaine, soit 200 livraisons sans cash par semaine au bout de trois mois.
+**Target reach (hypothesis to validate):** 20 pilot sellers in Dakar and Cotonou, 10 orders each per week: 200 cashless deliveries per week after three months.
 
-## Prochaine itération
+## Next iteration
 
-1. Paiements réels de bout en bout avec un Alby Hub branché (déjà pris en charge par le code), puis adaptateur LND direct.
-2. Intégration Banxaas (paiement Mobile Money et versement), selon leur API partenaire.
-3. Pilote avec 5 à 10 vendeuses réelles, mesure des indicateurs ci-dessus.
-4. Ouverture au Bénin (partenaire de change local) et volet diaspora (paiement depuis l'étranger).
+1. Mobile Money through a licensed exchange partner (Banxaas), then Benin with a local partner.
+2. Pilot with 5 to 10 real sellers, tracking the metrics above.
+3. Direct LND adapter for sellers running their own node.
+4. Diaspora: pay from abroad for a delivery back home.
 
-## Sécurité
+## Security
 
-Modèle de menaces complet : [docs/SECURITE.md](docs/SECURITE.md). En bref :
-- Le sésame est créé sur le téléphone du client et transmis une seule fois, à la libération.
-- **Sûr par défaut :** panne, perte du sésame ou absence d'action mènent toujours au remboursement.
-- Entrées validées (Zod), jetons hachés, PIN en scrypt, secrets et numéros chiffrés (AES-256-GCM), limitation des essais.
-- Aucune donnée personnelle ni secret dans les journaux ; le journal d'audit refuse les secrets et détecte toute modification.
-- En-têtes de sécurité stricts (CSP sans script externe).
+Full threat model: [docs/SECURITY.md](docs/SECURITY.md). In short:
+- The sésame is generated on the buyer's phone and sent only once, at release.
+- **Safe by default:** any failure, lost sésame or inaction ends in a refund.
+- Validated inputs (Zod), hashed tokens, scrypt PINs, secrets, phone numbers and NWC codes encrypted at rest (AES-256-GCM), rate limits.
+- No personal data or secrets in logs; the audit log rejects secrets and detects tampering.
+- Strict security headers (CSP with no external or inline scripts).
 
-## IA, en toute transparence
+## AI, transparently
 
-Par défaut, le remplissage automatique d'une commande utilise des **règles locales** (gratuites, hors ligne). Avec une clé gratuite (Groq ou Google Gemini), un LLM est utilisé, avec retour automatique aux règles locales en cas d'erreur. Les numéros de téléphone sont masqués avant tout envoi, et l'IA ne touche jamais au paiement.
+By default, order autofill uses **local rules** (free, offline). With a free key (Groq or Google Gemini), an LLM is used, falling back to the local rules on error. Phone numbers are masked before anything is sent, and the AI never touches payments.
 
 ## Documentation
 
-- [Architecture et protocole](docs/ARCHITECTURE.md)
-- [Sécurité et modèle de menaces](docs/SECURITE.md)
-- [Mise en ligne gratuite](docs/DEPLOIEMENT.md)
-- [Pitch, vidéo et questions du jury](docs/PITCH.md)
-- [Texte de soumission Devpost](docs/DEVPOST.md)
+- [Architecture and protocol](docs/ARCHITECTURE.md)
+- [Security and threat model](docs/SECURITY.md)
+- [Devpost submission text](docs/DEVPOST.md)
+- French: [README](README.fr.md), [sécurité](docs/SECURITE.md), [déploiement](docs/DEPLOIEMENT.md), [pitch](docs/PITCH.md)
 
-## Licence
+## License
 
 MIT

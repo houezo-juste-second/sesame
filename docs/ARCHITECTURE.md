@@ -1,108 +1,124 @@
-# Architecture de Sésame
+# Sésame architecture
 
-## Vue d'ensemble
+*[Version française](ARCHITECTURE.fr.md)*
+
+## Overview
 
 ```mermaid
 flowchart TB
-  subgraph Navigateurs["Téléphones (application web PWA)"]
-    V["Vendeuse<br/>créer · suivre · assigner"]
-    C["Client<br/>payer · sésame P"]
-    L["Livreur<br/>scanner P"]
-    PV["Page publique /verify<br/>vérifie les reçus"]
+  subgraph Phones["Phones (PWA web app)"]
+    V["Seller<br/>create · track · assign"]
+    C["Buyer<br/>pay · sésame P"]
+    L["Courier<br/>scan P"]
+    PV["Public /verify page<br/>checks receipts"]
   end
 
-  subgraph Serveur["Serveur Sésame (Node.js · Fastify)"]
-    API["API HTTP + temps réel (SSE)<br/>validation Zod · jetons par rôle"]
-    ENG["Moteur de séquestre<br/>machine à états · échéances"]
-    AI["Extraction de commande<br/>règles locales / LLM gratuit"]
-    REC["Reçus Nostr signés"]
-    DB[("SQLite<br/>secrets chiffrés AES-256-GCM<br/>audit chaîné")]
+  subgraph Server["Sésame server (Node.js · Fastify)"]
+    API["HTTP API + real time (SSE)<br/>Zod validation · per-role tokens"]
+    ENG["Escrow engine<br/>state machine · deadlines"]
+    WR["Wallet registry<br/>NWC per shop · simulation"]
+    AI["Order extraction<br/>local rules / free LLM"]
+    REC["Signed Nostr receipts"]
+    DB[("SQLite<br/>AES-256-GCM secrets<br/>hash-chained audit")]
   end
 
-  subgraph Externe["Réseaux"]
-    LN["Lightning<br/>facture hold"]
-    NOSTR["Relais Nostr"]
-    RATE["mempool.space<br/>taux BTC/EUR → FCFA"]
+  subgraph External["Networks"]
+    SW["Seller's own wallet<br/>(e.g. Alby Hub) via NWC relays"]
+    LN["Lightning network<br/>hold invoice"]
+    NOSTR["Nostr relays"]
+    RATE["mempool.space<br/>BTC/EUR → CFA franc"]
   end
 
   V & C & L --> API
-  API --> ENG
+  API --> ENG --> WR
   API --> AI
   ENG --> DB
-  ENG -- "WalletAdapter" --> LN
+  WR -- "NIP-47 requests (encrypted)" --> SW --> LN
   ENG --> REC --> DB
-  REC -. "optionnel" .-> NOSTR
-  PV -- "reçus" --> API
-  PV -. "relecture directe" .-> NOSTR
+  REC -. "optional" .-> NOSTR
+  PV -- "receipts" --> API
+  PV -. "direct read" .-> NOSTR
   API --> RATE
 ```
 
-## Le protocole en une figure
+## The protocol in one figure
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant C as Client (téléphone)
-  participant S as Serveur Sésame
-  participant W as Wallet de la vendeuse
-  participant L as Livreur
-  C->>C: génère P (32 octets) et H = SHA-256(P)
-  C->>S: H uniquement
-  S->>W: créer une facture « hold » liée à H
-  W-->>C: facture Lightning (QR)
-  C->>W: paie : les fonds sont BLOQUÉS (personne ne peut les prendre sans P)
-  Note over C,L: livraison, le client vérifie le colis
-  C->>L: montre le QR du sésame (P)
+  participant B as Buyer (phone)
+  participant S as Sésame server
+  participant W as Seller's wallet (NWC)
+  participant L as Courier
+  B->>B: generates P (32 bytes) and H = SHA-256(P)
+  B->>S: H only
+  S->>W: make_hold_invoice(H, amount)
+  W-->>B: Lightning invoice (QR)
+  B->>W: pays: funds are LOCKED (nobody can take them without P)
+  W-->>S: notification hold_invoice_accepted
+  Note over B,L: delivery, the buyer checks the parcel
+  B->>L: shows the sésame QR (P)
   L->>S: P
-  S->>S: vérifie SHA-256(P) = H
-  S->>W: régler la facture avec P → la vendeuse est payée
-  S->>L: part du livreur + frais (répartition)
-  Note over S,W: sans P avant l'échéance → annulation → client remboursé automatiquement
+  S->>S: checks SHA-256(P) = H
+  S->>W: settle_hold_invoice(P): the seller is paid
+  S->>W: pay_invoice to the courier's Lightning address
+  Note over S,W: no P before the deadline: cancel_hold_invoice, buyer refunded automatically
 ```
 
-## Choix et contraintes
+## Wallets
 
-| Sujet | Choix | Pourquoi |
+Each shop gets a `WalletAdapter` with four operations: create, settle, cancel and look up a hold invoice.
+
+| Implementation | When | Notes |
 |---|---|---|
-| Garde des fonds | Aucune pendant la livraison | Le serveur ne détient aucune clé capable de dépenser l'argent bloqué ; il ne connaît P qu'au moment de la libération. |
-| Sûr par défaut | Toute panne mène au remboursement | Perte du sésame, serveur arrêté, wallet injoignable : l'échéance rembourse le client. |
-| Front-end | Preact + Vite, PWA | ≈ 30 Ko de JavaScript compressé côté client : adapté à la 3G et aux téléphones d'entrée de gamme. |
-| Back-end | Node.js + Fastify + Zod | Un seul langage (TypeScript) partout ; validation stricte de toutes les entrées. |
-| Base de données | SQLite intégrée à Node (`node:sqlite`) | Gratuite, aucune dépendance native ni administration. |
-| Secrets au repos | AES-256-GCM | Sésame en attente et clés Nostr chiffrés ; jetons d'accès seulement hachés ; PIN en scrypt. |
-| Réputation | Reçus Nostr (NIP-78) signés par la boutique | Vérifiables par n'importe qui, dans le navigateur, sans faire confiance au serveur. |
-| IA | Règles locales + LLM gratuit facultatif | Fonctionne sans clé ni coût ; numéros de téléphone masqués avant tout envoi. |
+| `NwcHoldWallet` (Nostr Wallet Connect, NIP-47) | The seller connected her wallet ("Mon wallet Lightning") | Requests signed with the connection key, encrypted with NIP-44 (or NIP-04). `hold_invoice_accepted` notifications, plus polling with `lookup_invoice` as a fallback. Courier paid via LNURL-pay + `pay_invoice`. Verified live on Alby Hub. |
+| `MemoryHoldWallet` (simulation) | Guided demo, shops without a wallet | Reproduces the hold invoice lifecycle; labelled "Démonstration" on screen. |
 
-## Mobile Money en façade, Lightning en arrière-plan
+Each order records which wallet holds its invoice (`walletKind`), so a simulated payment can never be applied to a real order.
 
-Presque aucun client ni vendeuse n'a de wallet Lightning en Afrique de l'Ouest ; tout le monde a un compte Mobile Money. Sésame passe donc par un **partenaire de change agréé** (partenaire visé : Banxaas) :
+## Mobile Money on the front, Lightning underneath
+
+Almost no buyer or seller in West Africa has a Lightning wallet; everyone has Mobile Money. The plan is to go through a **licensed exchange partner** (target: Banxaas):
 
 ```mermaid
 flowchart LR
-  C["Client<br/>paie en Mobile Money"] --> P["Partenaire<br/>FCFA → sats"]
-  P -- "paie la facture hold" --> H["Facture hold<br/>fonds BLOQUÉS"]
-  H -- "sésame P à la livraison" --> R["Réception<br/>des sats"]
-  R --> P2["Partenaire<br/>sats → FCFA"] --> V["Vendeuse<br/>Mobile Money"]
-  H -. "échéance sans P :<br/>annulation" .-> P
-  P -. "remboursement" .-> C
+  C["Buyer<br/>pays in Mobile Money"] --> P["Partner<br/>CFA → sats"]
+  P -- "pays the hold invoice" --> H["Hold invoice<br/>funds LOCKED"]
+  H -- "sésame P at delivery" --> R["Receiving<br/>wallet"]
+  R --> P2["Partner<br/>sats → CFA"] --> V["Seller<br/>Mobile Money"]
+  H -. "deadline, no P:<br/>cancel" .-> P
+  P -. "refund" .-> C
 ```
 
-Dans la démonstration, le partenaire est simulé (route `POST /api/orders/:id/pay/momo`, remplacée en production par le webhook du partenaire). Le numéro Mobile Money de la vendeuse est chiffré ; une commande ne garde que « opérateur + 2 derniers chiffres ».
+In the demo, the partner is simulated (`POST /api/orders/:id/pay/momo`, to be replaced by the partner's webhook). The seller's Mobile Money number is encrypted; an order only keeps "operator + last 2 digits".
 
-### Qui reçoit les sats
+### Who receives the sats
 
-Pendant la livraison, les sats ne sont dans le wallet de personne : ils sont bloqués en transit sur le réseau, entre le wallet qui paie (le partenaire, approvisionné par le Mobile Money du client) et celui qui a créé la facture. Ce dernier peut être :
+During delivery, the sats are in nobody's wallet: they are locked in transit on the network, between the paying wallet and the wallet that created the invoice. The latter can be:
 
-| Option | Garde des fonds | État |
+| Option | Custody | Status |
 |---|---|---|
-| **A. Le partenaire** crée la facture hold pour le compte du numéro de la vendeuse | Sésame ne touche jamais l'argent | À confirmer avec Banxaas |
-| **B. Un nœud Lightning de Sésame**, puis versement immédiat vers le Mobile Money | Sésame détient les sats quelques secondes à la libération | Faisable tout de suite, cadre réglementaire à prévoir |
-| **C. Le wallet Lightning de la vendeuse** (factures hold via Nostr Wallet Connect) | Personne : l'argent arrive dans son wallet | **Implémenté** (« Mon wallet Lightning ») |
+| **A. The exchange partner** creates the hold invoice on behalf of the seller's number | Sésame never touches the money | To confirm with Banxaas |
+| **B. A Sésame Lightning node**, then an immediate Mobile Money payout | Sésame holds the sats for a few seconds at release | Feasible now, needs a regulatory framework |
+| **C. The seller's own Lightning wallet** (hold invoices via Nostr Wallet Connect) | Nobody: the money lands in her wallet | **Implemented** ("Mon wallet Lightning") |
 
-Dans tous les cas, **pendant la livraison, personne ne peut prendre l'argent bloqué, pas même Sésame.**
+In every case, **during delivery nobody can take the locked money, not even Sésame.**
 
-## Limites connues (état actuel)
+## Choices and constraints
 
-- **Paiements simulés** dans la démonstration (bandeau « Démonstration »). L'adaptateur LND pour de vrais paiements sur réseau de test est la prochaine étape.
-- **Mobile Money simulé** en attendant l'API partenaire de Banxaas ; le Bénin n'est pas encore couvert par Banxaas.
-- Pas d'arbitrage en cas de litige après livraison (produit défectueux) : prévu en V2.
+| Topic | Choice | Why |
+|---|---|---|
+| Custody | None during delivery | The server holds no key able to spend the locked money; it only learns P at release. |
+| Safe by default | Every failure ends in a refund | Lost sésame, server down, unreachable wallet: the deadline refunds the buyer. |
+| Front end | Preact + Vite, PWA | About 36 KB of gzipped JavaScript for the main bundle: suited to 3G and entry-level phones. |
+| Back end | Node.js + Fastify + Zod | One language (TypeScript) everywhere; strict validation of every input. |
+| Database | SQLite built into Node (`node:sqlite`) | Free, no native dependency, no administration. |
+| Secrets at rest | AES-256-GCM | Pending sésames, Nostr keys, NWC codes and phone numbers encrypted; access tokens only stored hashed; PINs with scrypt. |
+| Reputation | Nostr receipts (NIP-78) signed by the shop | Verifiable by anyone, in the browser, without trusting the server. |
+| AI | Local rules + optional free LLM | Works with no key and no cost; phone numbers masked before anything is sent. |
+
+## Known limits (current state)
+
+- **Mobile Money is simulated** pending Banxaas's partner API; Benin is not covered by Banxaas yet.
+- **Shops without a connected wallet** and the guided demo use the simulated wallet.
+- No arbitration for disputes after delivery (faulty product): planned for V2.
