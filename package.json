@@ -17,7 +17,9 @@
     "dev:web": "npm run dev -w @sesame/web",
     "build": "npm run build -w @sesame/web",
     "start": "tsx apps/server/src/main.ts",
-    "demo": "npm install && npm run build && npm start"
+    "demo": "npm install && npm run build && npm start",
+    "nwc:check": "tsx scripts/nwc-live-check.ts",
+    "nwc:e2e": "tsx scripts/nwc-live-e2e.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

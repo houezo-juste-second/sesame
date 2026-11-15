@@ -57,6 +57,15 @@ Données de démonstration incluses :
 - **Réputation publique vérifiable :** `/verify/pagnes-de-fifame`.
 - **Administration :** `/admin`, activée en définissant `SESAME_ADMIN_CODE` (8 caractères min.).
 
+### Avec un vrai wallet Lightning (gratuit, sats de test)
+
+1. Créez un wallet de test gratuit sur https://faucet.nwc.dev (il fonctionne sur un vrai Alby Hub) : vous obtenez un code `nostr+walletconnect://…`.
+2. Espace vendeuse → **Mon wallet Lightning** → collez le code. Le wallet est vérifié (factures hold prises en charge) puis branché.
+3. Créez une commande : la facture hold est créée **dans ce wallet**. Payez-la depuis un autre wallet Lightning (un second wallet du faucet, ou le vôtre).
+4. Libérez avec le sésame : les sats arrivent dans le wallet de la vendeuse. Sans livraison : annulation, le payeur est remboursé.
+
+Vérification automatique, sans interface : `npm run nwc:check` (facture hold bloquée puis réglée ; `-- --cancel` pour le remboursement) et `npm run nwc:e2e -- http://127.0.0.1:8080` (parcours complet à travers l'application). Résultat obtenu le 15 novembre 2026 : paiement bloqué, réglé avec le sésame, et remboursement complet en cas d'annulation.
+
 Autres commandes : `npm test` (114 tests), `npm run typecheck`, `npm run dev:server` + `npm run dev:web`. Configuration : [.env.example](.env.example). Mise en ligne gratuite : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
 
 ## État d'avancement (honnête)
