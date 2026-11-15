@@ -4,7 +4,8 @@ import { decodeSesameQr, encodeSesameQr } from '@sesame/core';
 import { api, ApiError, linkToken, local, subscribe, xof, type OrderView } from '../api.js';
 import { getDemo } from '../demo.js';
 import { Check, Scan } from '../ui/icons.js';
-import { Brand, ErrorBox, Loading, SimBanner } from '../ui/kit.js';
+import { Brand, ErrorBox, LangToggle, Loading, SimBanner } from '../ui/kit.js';
+import { errorText, t } from '../i18n.js';
 import type { Scanner as ScannerType } from '../ui/Scanner.js';
 
 /** Le lecteur QR (jsQR) n'est téléchargé que par le livreur, au premier usage. */
@@ -31,7 +32,7 @@ export function CourierMission({ id }: { id: string }) {
     try {
       setOrder(await api<OrderView>(`/api/orders/${id}`, { token }));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Erreur de chargement.');
+      setError(errorText(e, 'Erreur de chargement.'));
     }
   }, [id, token]);
 
@@ -44,8 +45,8 @@ export function CourierMission({ id }: { id: string }) {
   async function release(text: string) {
     setScanning(false);
     const s = decodeSesameQr(text.trim());
-    if (!s) return setError("Ce QR n'est pas un sésame. Demandez au client d'afficher son sésame dans Sésame.");
-    if (s.orderId !== id) return setError('Ce sésame correspond à une autre commande.');
+    if (!s) return setError(t("Ce QR n'est pas un sésame. Demandez au client d'afficher son sésame dans Sésame."));
+    if (s.orderId !== id) return setError(t('Ce sésame correspond à une autre commande.'));
     setBusy(true);
     setError(null);
     try {
@@ -53,13 +54,13 @@ export function CourierMission({ id }: { id: string }) {
       if ('vibrate' in navigator) navigator.vibrate?.(120);
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Une erreur est survenue.');
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
   }
 
-  if (!token) return <div class="screen night"><div class="content"><ErrorBox message="Lien de mission incomplet. Demandez à la vendeuse de vous le renvoyer." /></div></div>;
+  if (!token) return <div class="screen night"><div class="content"><ErrorBox message={t('Lien de mission incomplet. Demandez à la vendeuse de vous le renvoyer.')} /></div></div>;
   if (!order) return <div class="screen night">{error ? <div class="content"><ErrorBox message={error} /></div> : <Loading />}</div>;
 
   if (order.state === 'RELEASED') {
@@ -68,13 +69,13 @@ export function CourierMission({ id }: { id: string }) {
         <SimBanner show={order.simulation} />
         <main class="content center fade-in" style="justify-content:safe center;gap:18px">
           <div class="success-burst"><div><Check size={38} /></div></div>
-          <h1>Livraison confirmée</h1>
-          <p class="muted" style="margin:0;line-height:1.5">Vous pouvez remettre le colis. La vendeuse vient d'être payée.</p>
+          <h1>{t('Livraison confirmée')}</h1>
+          <p class="muted" style="margin:0;line-height:1.5">{t("Vous pouvez remettre le colis. La vendeuse vient d'être payée.")}</p>
           <div class="card stack small" style="text-align:left">
-            <div class="between"><span class="muted">Vous avez reçu</span><span class="big-amount" style="color:var(--leaf)">+{xof(order.courierFeeXof ?? 0)}</span></div>
+            <div class="between"><span class="muted">{t('Vous avez reçu')}</span><span class="big-amount" style="color:var(--leaf)">+{xof(order.courierFeeXof ?? 0)}</span></div>
             <div class="divider" />
-            <div class="between"><span class="muted">Commande</span><span>{order.itemLabel}</span></div>
-            <div class="between"><span class="muted">Boutique</span><span>{order.shopName}</span></div>
+            <div class="between"><span class="muted">{t('Commande')}</span><span>{order.itemLabel}</span></div>
+            <div class="between"><span class="muted">{t('Boutique')}</span><span>{order.shopName}</span></div>
           </div>
         </main>
       </div>
@@ -88,16 +89,16 @@ export function CourierMission({ id }: { id: string }) {
     <div class="screen night">
       <SimBanner show={order.simulation} />
       <header class="top stacked">
-        <Brand />
+        <div class="row"><Brand /><span class="grow" /><LangToggle dark /></div>
         <div class="stack" style="gap:10px">
           <div>
-            <div class="small" style="color:#B9BDE0">Livraison pour {order.shopName}</div>
+            <div class="small" style="color:#B9BDE0">{t('Livraison pour {shop}', { shop: order.shopName })}</div>
             <h2 style="font-size:21px;margin-top:2px">{order.itemLabel}</h2>
           </div>
           <div class="row" style="flex-wrap:wrap;gap:10px">
-            <span class="fee-tag"><span class="small">Votre course</span><b>{xof(order.courierFeeXof ?? 0)}</b></span>
+            <span class="fee-tag"><span class="small">{t('Votre course')}</span><b>{xof(order.courierFeeXof ?? 0)}</b></span>
             <span class={`status ${order.state}`} style={ready ? 'color:#8FE3AE' : 'color:#B9BDE0'}>
-              {ready ? 'Paiement du client bloqué' : order.state === 'REFUNDED' ? 'Commande remboursée' : order.state === 'EXPIRED' ? 'Commande expirée' : "Le client n'a pas encore payé"}
+              {ready ? t('Paiement du client bloqué') : order.state === 'REFUNDED' ? t('Commande remboursée') : order.state === 'EXPIRED' ? t('Commande expirée') : t("Le client n'a pas encore payé")}
             </span>
           </div>
         </div>
@@ -107,22 +108,22 @@ export function CourierMission({ id }: { id: string }) {
         {ready ? (
           <>
             {scanning && Scanner ? (
-              <Scanner onResult={(t) => void release(t)} onError={(m) => { setScanning(false); setError(m); }} />
+              <Scanner onResult={(txt) => void release(txt)} onError={(m) => { setScanning(false); setError(m); }} />
             ) : (
               <div class="viewfinder" aria-hidden="true"><span class="corner tl" /><span class="corner tr" /><span class="corner bl" /><span class="corner br" /></div>
             )}
             <div class="center stack" style="gap:6px">
-              <h2 style="font-size:18px">Scannez le sésame du client</h2>
+              <h2 style="font-size:18px">{t('Scannez le sésame du client')}</h2>
               <div class="small" style="color:#B9BDE0;line-height:1.45;max-width:290px;margin:0 auto">
-                Remettez le colis <strong style="color:#fff">seulement</strong> après le scan réussi. Vous êtes payé à la seconde.
+                {t('Remettez le colis')} <strong style="color:#fff">{t('seulement')}</strong> {t('après le scan réussi. Vous êtes payé à la seconde.')}
               </div>
             </div>
           </>
         ) : (
           <div class="card small" style="background:rgba(255,255,255,0.06);border:0;color:#D6D7E6;line-height:1.5">
             {order.state === 'REFUNDED' || order.state === 'EXPIRED'
-              ? "Cette commande n'est plus active. Ne livrez pas : rapportez le colis à la vendeuse."
-              : "Le client n'a pas encore payé. Attendez « Paiement du client bloqué » avant de partir."}
+              ? t("Cette commande n'est plus active. Ne livrez pas : rapportez le colis à la vendeuse.")
+              : t("Le client n'a pas encore payé. Attendez « Paiement du client bloqué » avant de partir.")}
           </div>
         )}
         {error && <ErrorBox message={error} />}
@@ -132,23 +133,23 @@ export function CourierMission({ id }: { id: string }) {
         <footer class="bottom clear">
           {manual ? (
             <form class="stack" onSubmit={(e) => { e.preventDefault(); void release(code); }}>
-              <label class="label" for="code">Sésame copié par le client</label>
+              <label class="label" for="code">{t('Sésame copié par le client')}</label>
               <input id="code" class="input" style="color:var(--ink)" value={code} onInput={(e) => setCode((e.target as HTMLInputElement).value)} placeholder="sesame:…" autocomplete="off" />
-              <button class="btn saffron" disabled={busy || code.length < 10}>Valider</button>
+              <button class="btn saffron" disabled={busy || code.length < 10}>{t('Valider')}</button>
             </form>
           ) : (
             <>
               <button class="btn saffron" disabled={busy} onClick={() => { setError(null); setScanning(!scanning); }}>
-                <Scan color="#1A1300" /> {scanning ? 'Arrêter la caméra' : 'Ouvrir la caméra'}
+                <Scan color="#1A1300" /> {scanning ? t('Arrêter la caméra') : t('Ouvrir la caméra')}
               </button>
               {demoSesame ? (
-                <button class="btn ghost" disabled={busy} onClick={() => void release(encodeSesameQr(id, demoSesame))}>Simuler le scan du sésame de la cliente</button>
+                <button class="btn ghost" disabled={busy} onClick={() => void release(encodeSesameQr(id, demoSesame))}>{t('Simuler le scan du sésame de la cliente')}</button>
               ) : (
-                <button class="btn ghost" onClick={() => setManual(true)}>Coller le sésame du client</button>
+                <button class="btn ghost" onClick={() => setManual(true)}>{t('Coller le sésame du client')}</button>
               )}
             </>
           )}
-          <div class="tiny center" style="color:#B9BDE0">Le client peut aussi confirmer lui-même avec « J'ai reçu mon colis ».</div>
+          <div class="tiny center" style="color:#B9BDE0">{t("Le client peut aussi confirmer lui-même avec « J'ai reçu mon colis ».")}</div>
         </footer>
       )}
     </div>

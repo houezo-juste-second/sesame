@@ -47,7 +47,7 @@ Only the seller has an account; buyer and rider just receive a WhatsApp link. A 
 - **Lightning hold invoices:** the buyer's phone generates a secret P and only sends its hash H = SHA-256(P). The invoice is tied to H, so it can only be settled with P, and it is cancelled automatically at the deadline. During delivery, nobody can take the money, not even Sésame.
 - **Real wallet integration with Nostr Wallet Connect (NIP-47):** hold invoices are created, settled and cancelled **in the seller's own wallet** (`make_hold_invoice`, `settle_hold_invoice`, `cancel_hold_invoice`, `hold_invoice_accepted` notifications). The rider is paid to his Lightning address via LNURL-pay. NIP-44 and NIP-04 encryption are supported. **We verified it live** on a real Alby Hub with free test wallets: payment locked, settled with the sésame, and fully refunded on cancel.
 - **Nostr (NIP-78):** delivery receipts signed by the shop and verified in the browser.
-- **Stack (100% free and open source):** TypeScript, Preact PWA (about 36 KB of gzipped JS, built for 3G), Fastify, Node's built-in SQLite, Zod.
+- **Stack (100% free and open source):** TypeScript, Preact PWA (about 38 KB of gzipped JS, built for 3G), Fastify, Node's built-in SQLite, Zod.
 - **Security by design:** documented threat model, hashed tokens, encrypted secrets, phone numbers and wallet codes (AES-256-GCM), scrypt PINs, rate limits, strict CSP, hash-chained audit log that rejects secrets, no personal data in logs. 122 automated tests.
 - **Admin dashboard:** volume, fees, alerts, audit-log verification and shop suspension, with no power over funds.
 
@@ -80,7 +80,7 @@ Only the seller has an account; buyer and rider just receive a WhatsApp link. A 
 
 - **Real:** Lightning hold invoices in the seller's wallet via Nostr Wallet Connect (verified on Alby Hub with test sats), the sésame cryptography, the escrow engine, signed Nostr receipts.
 - **Simulated (labelled on screen):** Mobile Money payments (pending a partner API), and the wallet used by the guided demo and by shops that have not connected a wallet.
-- The app interface is in French, the language of our users; code and docs are in English.
+- The app is bilingual (English / French), following the browser language with an EN/FR switch on every screen.
 ```
 
 ## Image gallery

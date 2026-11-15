@@ -3,6 +3,7 @@
  * Utilise le détecteur natif du navigateur (BarcodeDetector) s'il existe, sinon jsQR.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { t } from '../i18n.js';
 import jsQRModule from 'jsqr';
 
 interface Detector { detect(source: CanvasImageSource): Promise<Array<{ rawValue: string }>> }
@@ -62,9 +63,9 @@ export function Scanner({ onResult, onError }: { onResult: (text: string) => voi
         setReady(true);
         void tick();
       })
-      .catch(() => onError("Impossible d'ouvrir la caméra. Autorisez l'accès à la caméra, ou demandez au client de confirmer depuis son téléphone."));
+      .catch(() => onError(t("Impossible d'ouvrir la caméra. Autorisez l'accès à la caméra, ou demandez au client de confirmer depuis son téléphone.")));
 
-    if (!navigator.mediaDevices) onError('Ce navigateur ne permet pas d’utiliser la caméra.');
+    if (!navigator.mediaDevices) onError(t('Ce navigateur ne permet pas d’utiliser la caméra.'));
 
     return () => {
       stopped = true;
@@ -75,7 +76,7 @@ export function Scanner({ onResult, onError }: { onResult: (text: string) => voi
 
   return (
     <div class="viewfinder">
-      <video ref={video} playsInline muted aria-label="Aperçu de la caméra" />
+      <video ref={video} playsInline muted aria-label={t('Aperçu de la caméra')} />
       <span class="corner tl" /><span class="corner tr" /><span class="corner bl" /><span class="corner br" />
       {!ready && <div style="position:absolute;inset:0;display:grid;place-items:center;color:#A9ABC6;font-size:13px">Ouverture de la caméra…</div>}
     </div>

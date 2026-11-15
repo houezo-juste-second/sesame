@@ -110,7 +110,7 @@ In every case, **during delivery nobody can take the locked money, not even Sés
 |---|---|---|
 | Custody | None during delivery | The server holds no key able to spend the locked money; it only learns P at release. |
 | Safe by default | Every failure ends in a refund | Lost sésame, server down, unreachable wallet: the deadline refunds the buyer. |
-| Front end | Preact + Vite, PWA | About 36 KB of gzipped JavaScript for the main bundle: suited to 3G and entry-level phones. |
+| Front end | Preact + Vite, PWA | About 38 KB of gzipped JavaScript for the main bundle: suited to 3G and entry-level phones. |
 | Back end | Node.js + Fastify + Zod | One language (TypeScript) everywhere; strict validation of every input. |
 | Database | SQLite built into Node (`node:sqlite`) | Free, no native dependency, no administration. |
 | Secrets at rest | AES-256-GCM | Pending sésames, Nostr keys, NWC codes and phone numbers encrypted; access tokens only stored hashed; PINs with scrypt. |

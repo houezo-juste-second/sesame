@@ -3,6 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import QRCode from 'qrcode';
 import { Back, Seed } from './icons.js';
 import { navigate } from '../router.js';
+import { setLang, t, useLang } from '../i18n.js';
 
 export function Brand() {
   return (
@@ -13,12 +14,24 @@ export function Brand() {
   );
 }
 
+/** Bouton de langue : affiche l'autre langue disponible. */
+export function LangToggle({ dark = false }: { dark?: boolean }) {
+  const lang = useLang();
+  const next = lang === 'fr' ? 'en' : 'fr';
+  return (
+    <button type="button" class={`lang-toggle${dark ? ' dark' : ''}`} lang={next}
+      aria-label={next === 'en' ? 'Switch to English' : 'Passer en français'} onClick={() => void setLang(next)}>
+      {next.toUpperCase()}
+    </button>
+  );
+}
+
 export function TopBar({ back, title, subtitle, right }: { back?: string; title?: string; subtitle?: string; right?: ComponentChildren }) {
   // Sans bouton retour mais avec un titre : logo au-dessus, titre en dessous (lisible sur petits écrans).
   if (!back && (title || subtitle)) {
     return (
       <header class="top stacked">
-        <div class="row"><Brand /><span class="grow" />{right}</div>
+        <div class="row"><Brand /><span class="grow" /><LangToggle />{right}</div>
         <div>
           {subtitle && <div class="tiny muted">{subtitle}</div>}
           {title && <h2>{title}</h2>}
@@ -29,7 +42,7 @@ export function TopBar({ back, title, subtitle, right }: { back?: string; title?
   return (
     <header class="top">
       {back ? (
-        <a class="icon-btn" href={back} aria-label="Retour" onClick={(e) => { e.preventDefault(); navigate(back); }}>
+        <a class="icon-btn" href={back} aria-label={t('Retour')} onClick={(e) => { e.preventDefault(); navigate(back); }}>
           <Back />
         </a>
       ) : <Brand />}
@@ -37,6 +50,7 @@ export function TopBar({ back, title, subtitle, right }: { back?: string; title?
         {subtitle && <div class="tiny muted">{subtitle}</div>}
         {title && <h2>{title}</h2>}
       </div>
+      <LangToggle />
       {right}
     </header>
   );
@@ -44,7 +58,7 @@ export function TopBar({ back, title, subtitle, right }: { back?: string; title?
 
 export function SimBanner({ show }: { show: boolean }) {
   if (!show) return null;
-  return <div class="banner-sim" role="note">Démonstration : paiements simulés, aucun argent réel</div>;
+  return <div class="banner-sim" role="note">{t('Démonstration : paiements simulés, aucun argent réel')}</div>;
 }
 
 export function Qr({ text, label }: { text: string; label: string }) {
@@ -54,7 +68,7 @@ export function Qr({ text, label }: { text: string; label: string }) {
       .then(setSrc)
       .catch(() => setSrc(''));
   }, [text]);
-  return src ? <img src={src} alt={label} /> : <span class="tiny muted">Génération du QR…</span>;
+  return src ? <img src={src} alt={label} /> : <span class="tiny muted">{t('Génération du QR…')}</span>;
 }
 
 export function useNow(intervalMs = 30_000): number {
@@ -95,7 +109,7 @@ export function whatsappUrl(message: string): string {
 }
 
 export function Loading() {
-  return <div class="content center muted" style="justify-content:center">Chargement…</div>;
+  return <div class="content center muted" style="justify-content:center">{t('Chargement…')}</div>;
 }
 
 export function ErrorBox({ message }: { message: string }) {

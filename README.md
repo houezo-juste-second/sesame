@@ -11,7 +11,7 @@ Underneath, the lock is a **Bitcoin Lightning hold invoice**: during delivery, n
 > Submitted to the **Dakar Bitcoin Hack 2026 by Btrust**.
 > **Live demo:** https://sesame-1j54.onrender.com (tap "Essayer les 3 rôles en 2 minutes": all three roles, no account). Free hosting: the first load can take about a minute.
 > **Demo video (3 min):** see the Devpost page.
-> The app interface is in **French**, the language of our users in Senegal and Benin. The code, docs and pitch are in English.
+> The app is **bilingual (English / French)**: it follows the browser language, with an EN/FR switch on every screen. French is the default for our users in Senegal and Benin.
 
 ## Who does what
 
@@ -110,7 +110,7 @@ Other commands: `npm test` (122 tests), `npm run typecheck`, `npm run dev:server
 | Median time from payment to release | Delivery speed |
 | Mobile Money vs Lightning share | Partner dependency |
 | Failed payouts, overdue refunds | Reliability (admin alerts) |
-| Load time on 3G, app size (about 36 KB gzipped JS) | Access on entry-level phones |
+| Load time on 3G, app size (about 38 KB gzipped JS) | Access on entry-level phones |
 
 **Target reach (hypothesis to validate):** 20 pilot sellers in Dakar and Cotonou, 10 orders each per week: 200 cashless deliveries per week after three months.
 

@@ -1,4 +1,5 @@
 /** Client de l'API Sésame : jetons, appels JSON, flux temps réel. */
+import { locale, t } from './i18n.js';
 
 export type OrderState =
   | 'DRAFT' | 'AWAITING_PAYMENT' | 'FUNDS_LOCKED' | 'OUT_FOR_DELIVERY' | 'RELEASED' | 'REFUNDED' | 'EXPIRED';
@@ -84,7 +85,7 @@ export async function api<T>(path: string, opts: { method?: string; token?: stri
       body: opts.body !== undefined ? JSON.stringify(opts.body) : null,
     });
   } catch {
-    throw new ApiError(0, 'OFFLINE', 'Pas de connexion. Vérifiez votre réseau et réessayez.');
+    throw new ApiError(0, 'OFFLINE', t('Pas de connexion. Vérifiez votre réseau et réessayez.'));
   }
   const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
   if (!res.ok && res.status !== 202) {
@@ -153,11 +154,11 @@ export const initials = (name: string) =>
 export function timeLeft(iso: string | null, now = Date.now()): string {
   if (!iso) return '';
   const ms = new Date(iso).getTime() - now;
-  if (ms <= 0) return 'échéance atteinte';
+  if (ms <= 0) return t('échéance atteinte');
   const h = Math.floor(ms / 3_600_000);
   const m = Math.floor((ms % 3_600_000) / 60_000);
   return h > 0 ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`;
 }
 
 export const clock = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h') : '';
+  iso ? new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }).replace(':', locale() === 'fr-FR' ? 'h' : ':') : '';

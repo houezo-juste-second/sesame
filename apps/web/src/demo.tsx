@@ -6,7 +6,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { api, ApiError, local, SELLER_KEY, subscribe, type OrderView } from './api.js';
 import { navigate } from './router.js';
-import { ErrorBox } from './ui/kit.js';
+import { ErrorBox, LangToggle } from './ui/kit.js';
+import { errorText, t } from './i18n.js';
 
 const DEMO_KEY = 'sesame:demo';
 const BEFORE_KEY = 'sesame:seller:before-demo';
@@ -54,7 +55,7 @@ export function DemoStart() {
   useEffect(() => {
     startDemo()
       .then((d) => navigate(`/v/o/${d.orderId}`))
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Impossible de lancer la démo.'));
+      .catch((e) => setError(errorText(e, 'Impossible de lancer la démo.')));
   }, []);
   return (
     <div class="screen">
@@ -62,12 +63,12 @@ export function DemoStart() {
         {error ? (
           <>
             <ErrorBox message={error} />
-            <button class="btn ghost" onClick={() => navigate('/')}>Retour à l'accueil</button>
+            <button class="btn ghost" onClick={() => navigate('/')}>{t("Retour à l'accueil")}</button>
           </>
         ) : (
           <>
-            <h1>Préparation de la démo</h1>
-            <p class="muted">Une boutique de démonstration et une commande sont créées pour vous.</p>
+            <h1>{t('Préparation de la démo')}</h1>
+            <p class="muted">{t('Une boutique de démonstration et une commande sont créées pour vous.')}</p>
           </>
         )}
       </main>
@@ -77,15 +78,15 @@ export function DemoStart() {
 
 type Role = 'seller' | 'client' | 'courier';
 
-const GUIDE: Record<string, { step: string; text: string; next: Role | null }> = {
-  DRAFT: { step: 'Étape 1 sur 3', text: "La vendeuse a créé la commande et envoyé le lien sur WhatsApp. Passez à la cliente pour payer.", next: 'client' },
-  AWAITING_PAYMENT: { step: 'Étape 1 sur 3', text: 'La cliente paie en Mobile Money : choisissez un opérateur, un numéro, puis validez. Aucun argent réel.', next: 'client' },
-  FUNDS_LOCKED: { step: 'Étape 2 sur 3', text: "L'argent est bloqué. Passez au livreur : il reçoit sa mission.", next: 'courier' },
-  OUT_FOR_DELIVERY: { step: 'Étape 3 sur 3', text: 'Chez la cliente, le livreur scanne son sésame. Tout le monde est payé.', next: 'courier' },
-  RELEASED: { step: 'Terminé', text: 'La vendeuse et le livreur sont payés, et un reçu vérifiable est publié.', next: null },
-  REFUNDED: { step: 'Terminé', text: 'La commande a été annulée : la cliente est remboursée.', next: null },
-  EXPIRED: { step: 'Terminé', text: "La facture n'a pas été payée à temps.", next: null },
-};
+const guide = (): Record<string, { step: string; text: string; next: Role | null }> => ({
+  DRAFT: { step: t('Étape 1 sur 3'), text: t('La vendeuse a créé la commande et envoyé le lien sur WhatsApp. Passez à la cliente pour payer.'), next: 'client' },
+  AWAITING_PAYMENT: { step: t('Étape 1 sur 3'), text: t('La cliente paie en Mobile Money : choisissez un opérateur, un numéro, puis validez. Aucun argent réel.'), next: 'client' },
+  FUNDS_LOCKED: { step: t('Étape 2 sur 3'), text: t("L'argent est bloqué. Passez au livreur : il reçoit sa mission."), next: 'courier' },
+  OUT_FOR_DELIVERY: { step: t('Étape 3 sur 3'), text: t('Chez la cliente, le livreur scanne son sésame. Tout le monde est payé.'), next: 'courier' },
+  RELEASED: { step: t('Terminé'), text: t('La vendeuse et le livreur sont payés, et un reçu vérifiable est publié.'), next: null },
+  REFUNDED: { step: t('Terminé'), text: t('La commande a été annulée : la cliente est remboursée.'), next: null },
+  EXPIRED: { step: t('Terminé'), text: t("La facture n'a pas été payée à temps."), next: null },
+});
 
 /** Barre de guidage affichée au-dessus des écrans de la commande de démo. */
 export function DemoBar({ demo, path }: { demo: DemoState; path: string }) {
@@ -103,7 +104,7 @@ export function DemoBar({ demo, path }: { demo: DemoState; path: string }) {
   }, [id]);
 
   const current: Role = path.startsWith('/c/') ? 'client' : path.startsWith('/l/') ? 'courier' : 'seller';
-  const guide = order ? GUIDE[order.state] : undefined;
+  const step = order ? guide()[order.state] : undefined;
   const paid = order ? ['FUNDS_LOCKED', 'OUT_FOR_DELIVERY', 'RELEASED'].includes(order.state) : false;
 
   async function open(role: Role) {
@@ -112,7 +113,7 @@ export function DemoBar({ demo, path }: { demo: DemoState; path: string }) {
     if (role === 'client') return navigate(`/c/${id}`);
     let token = demo.courierToken;
     if (!token) {
-      if (order?.state !== 'FUNDS_LOCKED') return setError("Le livreur reçoit sa mission une fois que la cliente a payé.");
+      if (order?.state !== 'FUNDS_LOCKED') return setError(t('Le livreur reçoit sa mission une fois que la cliente a payé.'));
       setBusy(true);
       try {
         const r = await api<{ courierToken: string }>(`/api/orders/${id}/assign`, { token: demo.sellerToken, body: { lightningAddress: COURIER_ADDRESS } });
@@ -122,7 +123,7 @@ export function DemoBar({ demo, path }: { demo: DemoState; path: string }) {
         saveDemo({ ...demo, courierToken: token });
       } catch (e) {
         setBusy(false);
-        return setError(e instanceof ApiError ? e.message : 'Une erreur est survenue.');
+        return setError(errorText(e));
       }
       setBusy(false);
     }
@@ -130,28 +131,29 @@ export function DemoBar({ demo, path }: { demo: DemoState; path: string }) {
   }
 
   const tabs: Array<{ role: Role; label: string }> = [
-    { role: 'seller', label: 'Vendeuse' },
-    { role: 'client', label: 'Cliente' },
-    { role: 'courier', label: 'Livreur' },
+    { role: 'seller', label: t('Vendeuse') },
+    { role: 'client', label: t('Cliente') },
+    { role: 'courier', label: t('Livreur') },
   ];
 
   return (
-    <div class="demo-bar" role="region" aria-label="Démo guidée">
+    <div class="demo-bar" role="region" aria-label={t('Démo guidée')}>
       <div class="row">
-        <strong class="grow">Démo guidée <span class="demo-sim">paiements simulés</span></strong>
-        <button class="demo-quit" onClick={quitDemo}>Quitter</button>
+        <strong class="grow">{t('Démo guidée')} <span class="demo-sim">{t('paiements simulés')}</span></strong>
+        <LangToggle dark />
+        <button class="demo-quit" onClick={quitDemo}>{t('Quitter')}</button>
       </div>
-      {guide && (
+      {step && (
         <p class="demo-hint" aria-live="polite">
-          <b>{guide.step}.</b> {guide.text}
-          {order?.state === 'RELEASED' && <> <a href={`/verify/${demo.slug}`} onClick={(e) => { e.preventDefault(); navigate(`/verify/${demo.slug}`); }}>Voir la réputation</a></>}
+          <b>{step.step}.</b> {step.text}
+          {order?.state === 'RELEASED' && <> <a href={`/verify/${demo.slug}`} onClick={(e) => { e.preventDefault(); navigate(`/verify/${demo.slug}`); }}>{t('Voir la réputation')}</a></>}
         </p>
       )}
-      <div class="demo-tabs" role="group" aria-label="Changer de rôle">
-        {tabs.map((t) => (
-          <button key={t.role} aria-pressed={current === t.role} disabled={busy || (t.role === 'courier' && !paid && !demo.courierToken)}
-            class={guide?.next === t.role && current !== t.role ? 'next' : ''} onClick={() => void open(t.role)}>
-            {t.label}
+      <div class="demo-tabs" role="group" aria-label={t('Changer de rôle')}>
+        {tabs.map((tab) => (
+          <button key={tab.role} aria-pressed={current === tab.role} disabled={busy || (tab.role === 'courier' && !paid && !demo.courierToken)}
+            class={step?.next === tab.role && current !== tab.role ? 'next' : ''} onClick={() => void open(tab.role)}>
+            {tab.label}
           </button>
         ))}
       </div>

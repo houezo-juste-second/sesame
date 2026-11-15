@@ -10,6 +10,7 @@ import type { Event } from 'nostr-tools/pure';
 import { api, ApiError, initials, xof } from '../api.js';
 import { Check, Shield } from '../ui/icons.js';
 import { copyText, ErrorBox, Loading, Toast, TopBar, useToast } from '../ui/kit.js';
+import { errorText, locale, t } from '../i18n.js';
 
 interface ReceiptsResponse {
   shopName: string; city: string; since: string; pubkey: string; npub: string; relays: string[]; events: Event[];
@@ -58,7 +59,7 @@ export function Verify({ slug }: { slug: string }) {
             .sort((a, b) => b.at.getTime() - a.at.getTime()),
         );
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Erreur de chargement.');
+        setError(errorText(e, 'Erreur de chargement.'));
       }
     })();
   }, [slug]);
@@ -77,45 +78,45 @@ export function Verify({ slug }: { slug: string }) {
           <div class="avatar" aria-hidden="true">{initials(data.shopName)}</div>
           <div class="grow">
             <h2>{data.shopName}</h2>
-            <div class="small muted">{data.city}, sur Sésame depuis {new Date(data.since).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</div>
+            <div class="small muted">{t('{city}, sur Sésame depuis {since}', { city: data.city, since: new Date(data.since).toLocaleDateString(locale(), { month: 'long', year: 'numeric' }) })}</div>
           </div>
         </section>
 
         <section class="band">
-          <div class="row" style="gap:8px"><Shield /><strong>Vérifié sur votre téléphone</strong></div>
+          <div class="row" style="gap:8px"><Shield /><strong>{t('Vérifié sur votre téléphone')}</strong></div>
           <div class="figures" style={invalid > 0 ? '' : 'grid-template-columns:repeat(2, minmax(0, 1fr))'}>
-            <div><b style="color:#8FE3AE">{released}</b><span>livraisons prouvées</span></div>
-            <div><b>{refunded}</b><span>remboursements</span></div>
-            {invalid > 0 && <div><b style="color:var(--saffron)">{invalid}</b><span>reçus rejetés</span></div>}
+            <div><b style="color:#8FE3AE">{released}</b><span>{t('livraisons prouvées')}</span></div>
+            <div><b>{refunded}</b><span>{t('remboursements')}</span></div>
+            {invalid > 0 && <div><b style="color:var(--saffron)">{invalid}</b><span>{t('reçus rejetés')}</span></div>}
           </div>
         </section>
 
         <section class="card small stack" style="gap:6px;line-height:1.5">
-          <span>Chaque reçu est <strong>signé par la boutique</strong> et, pour une livraison, contient la <strong>preuve de paiement Lightning</strong>. Ce contrôle est fait ici, sur votre téléphone : le serveur Sésame ne peut pas inventer de livraisons.</span>
-          <button class="btn ghost" style="height:40px;font-size:12px" onClick={async () => showToast((await copyText(data.npub)) ? 'Clé publique copiée' : 'Copie impossible')}>
+          <span>{t('Chaque reçu est')} <strong>{t('signé par la boutique')}</strong> {t('et, pour une livraison, contient la')} <strong>{t('preuve de paiement Lightning')}</strong>. {t('Ce contrôle est fait ici, sur votre téléphone : le serveur Sésame ne peut pas inventer de livraisons.')}</span>
+          <button class="btn ghost" style="height:40px;font-size:12px" onClick={async () => showToast((await copyText(data.npub)) ? t('Clé publique copiée') : t('Copie impossible'))}>
             <span class="mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{data.npub}</span>
           </button>
           <span class="tiny muted">
-            Source : serveur Sésame{data.relays.length > 0 ? ` + ${fromRelayCount} reçu(s) relu(s) sur ${data.relays.length} relais Nostr` : ' (publication sur relais Nostr désactivée en démo)'}.
+            {t('Source : serveur Sésame')}{data.relays.length > 0 ? t(' + {n} reçu(s) relu(s) sur {r} relais Nostr', { n: fromRelayCount, r: data.relays.length }) : t(' (publication sur relais Nostr désactivée en démo)')}.
           </span>
         </section>
 
-        <h2 class="section-title">Reçus</h2>
+        <h2 class="section-title">{t('Reçus')}</h2>
         <div class="list">
-          {rows.length === 0 && <div class="list-empty">Aucun reçu pour l'instant.</div>}
+          {rows.length === 0 && <div class="list-empty">{t("Aucun reçu pour l'instant.")}</div>}
           {rows.map(({ ev, check, amount, at }) => (
             <div key={ev.id} class="list-row">
               <div class="grow">
                 <div class="amount">{xof(amount)}</div>
-                <div class="tiny muted">{at.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} vers {at.getHours()}h</div>
+                <div class="tiny muted">{t('{date} vers {h}h', { date: at.toLocaleDateString(locale(), { day: 'numeric', month: 'short' }), h: at.getHours() })}</div>
               </div>
               <div style="text-align:right">
                 {check.valid ? (
                   <span class={`pill ${check.outcome === 'released' ? 'RELEASED' : 'REFUNDED'}`}>
-                    {check.outcome === 'released' ? <><Check size={11} color="currentColor" /> Livrée, paiement prouvé</> : 'Remboursée'}
+                    {check.outcome === 'released' ? <><Check size={11} color="currentColor" /> {t('Livrée, paiement prouvé')}</> : t('Remboursée')}
                   </span>
                 ) : (
-                  <span class="pill EXPIRED">Reçu invalide</span>
+                  <span class="pill EXPIRED">{t('Reçu invalide')}</span>
                 )}
               </div>
             </div>

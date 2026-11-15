@@ -4,6 +4,7 @@
  * Court, lisible d'un coup d'œil, et la garantie dite en une phrase.
  */
 import { xof } from '../api.js';
+import { t } from '../i18n.js';
 
 export interface MessageOrder {
   itemLabel: string;
@@ -15,29 +16,29 @@ export interface MessageOrder {
 
 export function clientMessage(o: MessageOrder, link: string): string {
   return [
-    `Bonjour 👋 Voici votre commande chez *${o.shopName}* :`,
+    t('Bonjour 👋 Voici votre commande chez *{shop}* :', { shop: o.shopName }),
     '',
     `🛍️ ${o.itemLabel}`,
-    `💰 *${xof(o.totalXof)}*${o.deliveryFeeXof > 0 ? ' livraison comprise' : ''}`,
+    `💰 *${xof(o.totalXof)}*${o.deliveryFeeXof > 0 ? t(' livraison comprise') : ''}`,
     '',
-    "🔒 Vous payez maintenant, mais l'argent reste *bloqué jusqu'à la livraison*.",
-    `Pas livré dans les ${o.deliveryHours} h ? Vous êtes *remboursé automatiquement*.`,
+    t("🔒 Vous payez maintenant, mais l'argent reste *bloqué jusqu'à la livraison*."),
+    t('Pas livré dans les {h} h ? Vous êtes *remboursé automatiquement*.', { h: o.deliveryHours }),
     '',
-    '👉 Payer en sécurité :',
+    t('👉 Payer en sécurité :'),
     link,
   ].join('\n');
 }
 
 export function courierMessage(o: MessageOrder, link: string): string {
   return [
-    `🛵 *Mission de livraison* pour *${o.shopName}*`,
+    t('🛵 *Mission de livraison* pour *{shop}*', { shop: o.shopName }),
     '',
     `📦 ${o.itemLabel}`,
-    `💵 Votre course : *${xof(o.deliveryFeeXof)}*, payée dès le scan`,
+    t('💵 Votre course : *{fee}*, payée dès le scan', { fee: xof(o.deliveryFeeXof) }),
     '',
-    '✅ Le client a déjà payé. Chez lui, scannez son sésame *avant* de remettre le colis.',
+    t('✅ Le client a déjà payé. Chez lui, scannez son sésame *avant* de remettre le colis.'),
     '',
-    '👉 Ouvrir la mission :',
+    t('👉 Ouvrir la mission :'),
     link,
   ].join('\n');
 }

@@ -315,3 +315,9 @@ body.demo-on .banner-sim { display: none; }
 .operators { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
 .operators button { min-height: 48px; padding: 8px 6px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); font-weight: 700; font-size: 14px; line-height: 1.2; cursor: pointer; color: var(--ink); }
 .operators button[aria-pressed="true"] { border: 2px solid var(--indigo); background: var(--indigo-soft); color: var(--indigo-deep); }
+
+/* Bouton de langue FR / EN */
+.lang-toggle { min-width: 44px; min-height: 36px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: 700 13px/1 var(--font-display); letter-spacing: 0.4px; cursor: pointer; flex-shrink: 0; }
+.lang-toggle.dark { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.22); color: #fff; }
+/* Pendant la démo guidée, le bouton de langue est dans la barre de guidage */
+body.demo-on .screen .lang-toggle { display: none; }
