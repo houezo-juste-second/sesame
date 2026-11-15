@@ -97,7 +97,7 @@ Pendant la livraison, les sats ne sont dans le wallet de personne : ils sont blo
 |---|---|---|
 | **A. Le partenaire** crée la facture hold pour le compte du numéro de la vendeuse | Sésame ne touche jamais l'argent | À confirmer avec Banxaas |
 | **B. Un nœud Lightning de Sésame**, puis versement immédiat vers le Mobile Money | Sésame détient les sats quelques secondes à la libération | Faisable tout de suite, cadre réglementaire à prévoir |
-| **C. Le wallet Lightning de la vendeuse** (factures hold, ex. via NWC) | Personne | Pour les vendeuses à l'aise avec Lightning |
+| **C. Le wallet Lightning de la vendeuse** (factures hold via Nostr Wallet Connect) | Personne : l'argent arrive dans son wallet | **Implémenté** (« Mon wallet Lightning ») |
 
 Dans tous les cas, **pendant la livraison, personne ne peut prendre l'argent bloqué, pas même Sésame.**
 

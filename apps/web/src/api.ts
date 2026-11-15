@@ -29,6 +29,8 @@ export interface OrderView {
   reputation?: { released: number; refunded: number };
   payment?: { method: 'momo' | 'lightning'; operator?: string; phoneHint?: string } | null;
   sellerPayoutLabel?: string | null;
+  /** La facture hold est dans le wallet Lightning réel de la vendeuse (NWC). */
+  realWallet?: boolean;
 }
 
 /** Opérateurs Mobile Money proposés (Bénin, Sénégal, Côte d'Ivoire). */

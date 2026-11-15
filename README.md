@@ -69,7 +69,9 @@ Autres commandes : `npm test` (114 tests), `npm run typecheck`, `npm run dev:ser
 | Reçus Nostr signés + page de réputation vérifiée dans le navigateur | ✅ testé |
 | Remplissage de commande depuis une conversation (règles locales, LLM gratuit optionnel) | ✅ testé |
 | Paiement Mobile Money et versement vendeuse | 🟡 **simulés** (partenaire visé : Banxaas, pas d'API publique à ce jour) |
-| Facture hold Lightning | 🟡 **wallet simulé** dans la démo ; adaptateur LND (réseau de test) en cours |
+| **Wallet Lightning de la vendeuse (Nostr Wallet Connect)** | ✅ « Mon wallet Lightning » : la vendeuse branche son propre wallet (ex. Alby Hub) ; factures hold créées, réglées et annulées dans SON wallet, livreur payé à son adresse Lightning. Testé avec le vrai protocole NIP-47 (signatures, chiffrement NIP-44 / NIP-04) |
+| Client | ✅ paie avec son propre wallet Lightning (QR / lien `lightning:`) pour une boutique branchée |
+| Boutiques sans wallet branché, démo guidée | 🟡 wallet simulé, signalé à l'écran |
 
 Tout ce qui est simulé est signalé à l'écran par un bandeau « Démonstration ».
 
@@ -97,7 +99,7 @@ Tout ce qui est simulé est signalé à l'écran par un bandeau « Démonstratio
 
 ## Prochaine itération
 
-1. Vrais paiements Lightning sur réseau de test (adaptateur LND, factures hold).
+1. Paiements réels de bout en bout avec un Alby Hub branché (déjà pris en charge par le code), puis adaptateur LND direct.
 2. Intégration Banxaas (paiement Mobile Money et versement), selon leur API partenaire.
 3. Pilote avec 5 à 10 vendeuses réelles, mesure des indicateurs ci-dessus.
 4. Ouverture au Bénin (partenaire de change local) et volet diaspora (paiement depuis l'étranger).

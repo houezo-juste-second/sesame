@@ -64,6 +64,7 @@ if (existsSync(webDist)) {
 const tickMs = Number(env.SESAME_TICK_MS ?? 5_000);
 setInterval(() => {
   ctx.engine.tick().catch((err: unknown) => app.log.error(err));
+  ctx.wallets.pollPending(ctx.store).catch((err: unknown) => app.log.error(err));
 }, tickMs).unref();
 
 const port = Number(env.PORT ?? 8080);

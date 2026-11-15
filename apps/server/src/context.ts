@@ -15,7 +15,9 @@ import { PoolPublisher, ReceiptService, type RelayPublisher } from './nostr/rece
 import { FixedRate, MempoolRate, type RateProvider } from './rate.js';
 import { SecretBox } from './security/secretbox.js';
 import type { ShopStore } from './shops.js';
-import { MemoryHoldWallet, MemoryPayoutSender } from './wallet/memory.js';
+import type { MemoryHoldWallet } from './wallet/memory.js';
+import type { NwcTransport } from './wallet/nwc.js';
+import { WalletRegistry } from './wallet/registry.js';
 
 export interface ServerConfig {
   mode: 'simulation';
@@ -33,6 +35,11 @@ export interface ServerConfig {
   onError?: ((e: unknown) => void) | undefined;
   /** Code d'accès à l'administration (8 caractères min.) ; absent : administration désactivée. */
   adminCode?: string | undefined;
+  /** Transport NWC (tests) ; absent : relais Nostr réels. */
+  nwcTransport?: NwcTransport | undefined;
+  nwcTimeoutMs?: number | undefined;
+  /** fetch pour les adresses Lightning (tests). */
+  fetch?: typeof fetch | undefined;
 }
 
 export interface ServerContext {
@@ -46,7 +53,8 @@ export interface ServerContext {
   hub: EventHub;
   audit: SqliteAuditLog;
   receipts: ReceiptService;
-  /** Présent uniquement en mode simulation : permet le « wallet de démo ». */
+  wallets: WalletRegistry;
+  /** Wallet simulé : permet le « wallet de démo » pour les boutiques sans wallet réel. */
   simWallet?: MemoryHoldWallet | undefined;
 }
 
@@ -57,14 +65,13 @@ export function createServerContext(config: ServerConfig): ServerContext {
   const shops = new SqliteShopStore(db, box);
   const hub = new EventHub();
   const audit = new SqliteAuditLog(db);
-  const wallet = new MemoryHoldWallet();
-  const payouts = new MemoryPayoutSender();
+  const wallets = new WalletRegistry(shops, { transport: config.nwcTransport, timeoutMs: config.nwcTimeoutMs, fetch: config.fetch, onError: config.onError });
   const publisher = config.publisher ?? (config.nostrRelays?.length ? new PoolPublisher(config.nostrRelays) : null);
   const receipts = new ReceiptService(db, store, shops, publisher, config.onError);
 
   const engine = new EscrowEngine({
-    walletFor: () => wallet,
-    payouts,
+    walletFor: (shopId) => wallets.walletFor(shopId),
+    payouts: wallets.payouts(),
     store,
     onEvent: (e) => {
       audit.append({ orderId: e.orderId, event: e.type, payload: { state: e.state, ...(e.data ?? {}) } });
@@ -72,7 +79,8 @@ export function createServerContext(config: ServerConfig): ServerContext {
       if (e.type === 'RELEASED' || e.type === 'REFUNDED') receipts.onFinal(e.orderId);
     },
   });
-  wallet.onAccepted((hash, amount) => engine.handleInvoiceAccepted(hash, amount));
+  wallets.onAccepted((hash, amount) => engine.handleInvoiceAccepted(hash, amount));
+  wallets.restore();
 
   const rate: RateProvider = config.fixedXofPerBtc ? new FixedRate(config.fixedXofPerBtc) : new MempoolRate(60_000_000);
 
@@ -87,6 +95,7 @@ export function createServerContext(config: ServerConfig): ServerContext {
     hub,
     audit,
     receipts,
-    simWallet: wallet,
+    wallets,
+    simWallet: wallets.sim,
   };
 }

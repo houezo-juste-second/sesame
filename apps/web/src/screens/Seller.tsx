@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 import { serviceFeeXof } from '@sesame/core';
 import { api, ApiError, initials, local, MOMO_OPERATORS, SELLER_KEY, subscribe, xof, type OrderView } from '../api.js';
 import { navigate } from '../router.js';
-import { Chevron, Logout, Phone, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
+import { Bolt, Chevron, Logout, Phone, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
+import type { Scanner as ScannerType } from '../ui/Scanner.js';
 import { copyText, ErrorBox, Loading, SimBanner, Toast, TopBar, useToast, whatsappUrl } from '../ui/kit.js';
 import { clientMessage, courierMessage } from '../ui/messages.js';
 
@@ -89,7 +90,7 @@ function SellerAuth({ onToken }: { onToken: (t: string) => void }) {
 // ================================================================ tableau de bord
 
 interface Dash {
-  shop: { name: string; slug: string; city: string; payoutLabel?: string | null };
+  shop: { name: string; slug: string; city: string; payoutLabel?: string | null; walletConnected?: boolean };
   orders: OrderView[];
   summary: { releasedXof: number; releasedCount: number; lockedXof: number; inDeliveryCount: number };
 }
@@ -142,6 +143,16 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
           </div>
         </section>
 
+        <a class="link-row" href="/v/wallet" onClick={(e) => { e.preventDefault(); navigate('/v/wallet'); }}>
+          <span class="link-icon"><Bolt size={18} color="var(--indigo)" /></span>
+          <span class="grow">
+            <strong style="display:block;font-size:15px">Mon wallet Lightning</strong>
+            <span class="tiny muted">{data.shop.walletConnected ? 'Branché : paiements réels' : 'Brancher mon wallet pour des paiements réels'}</span>
+          </span>
+          {data.shop.walletConnected && <span class="status RELEASED">Branché</span>}
+          <span class="chev"><Chevron /></span>
+        </a>
+
         <a class="link-row" href="/v/payout" onClick={(e) => { e.preventDefault(); navigate('/v/payout'); }}>
           <span class="link-icon"><Phone size={18} color="var(--indigo)" /></span>
           <span class="grow">
@@ -182,6 +193,103 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
       <footer class="bottom">
         <a class="btn primary" href="/v/new" onClick={(e) => { e.preventDefault(); navigate('/v/new'); }}><Plus /> Nouvelle commande</a>
       </footer>
+    </div>
+  );
+}
+
+// ================================================================ mon wallet Lightning (NWC)
+
+export function SellerWallet() {
+  const [token] = useSellerToken();
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [uri, setUri] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [Scanner, setScanner] = useState<typeof ScannerType | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [toast, showToast] = useToast();
+
+  useEffect(() => {
+    if (!token) { navigate('/v'); return; }
+    api<{ connected: boolean }>('/api/shops/me/wallet', { token }).then((r) => setConnected(r.connected)).catch(() => setConnected(false));
+  }, [token]);
+  useEffect(() => {
+    if (scanning && !Scanner) void import('../ui/Scanner.js').then((m) => setScanner(() => m.Scanner));
+  }, [scanning]);
+  if (!token) return null;
+
+  async function connect(value: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api('/api/shops/me/wallet', { token, body: { uri: value.trim() } });
+      setConnected(true);
+      setUri('');
+      showToast('Wallet branché');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Une erreur est survenue.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api('/api/shops/me/wallet/disconnect', { token, body: {} });
+      setConnected(false);
+      showToast('Wallet débranché');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Une erreur est survenue.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div class="screen">
+      <TopBar back="/v" title="Mon wallet Lightning" />
+      <main class="content fade-in">
+        {connected ? (
+          <>
+            <div class="card ok small">
+              <strong>Votre wallet est branché.</strong> Vos nouvelles commandes utilisent de vrais paiements Lightning :
+              la facture est créée dans votre wallet, et l'argent y arrive directement à la livraison.
+            </div>
+            <button class="btn quiet" disabled={busy} onClick={() => void disconnect()}>Débrancher mon wallet</button>
+          </>
+        ) : (
+          <>
+            <p class="muted small">
+              Branchez votre propre wallet Lightning avec <strong>Nostr Wallet Connect</strong>. Sésame pourra lui demander de créer
+              et de régler vos factures, et de payer la course de vos livreurs. L'argent arrive dans votre wallet, jamais chez Sésame.
+            </p>
+            <ol class="small muted" style="margin:0;padding-left:20px;display:grid;gap:6px">
+              <li>Dans votre wallet (par exemple <strong>Alby Hub</strong>), créez une connexion pour « Sésame ».</li>
+              <li>Autorisez les factures, les factures « hold » et les paiements, avec un <strong>budget</strong> (par exemple 50 000 sats par mois) : Sésame ne pourra jamais dépenser plus.</li>
+              <li>Copiez le code qui commence par <span class="mono">nostr+walletconnect://</span>, ou scannez son QR.</li>
+            </ol>
+            {scanning && Scanner ? (
+              <Scanner onResult={(t) => { setScanning(false); void connect(t); }} onError={(m) => { setScanning(false); setError(m); }} />
+            ) : null}
+            <form class="stack" onSubmit={(e) => { e.preventDefault(); void connect(uri); }}>
+              <div class="field">
+                <label for="nwc">Code de connexion</label>
+                <textarea id="nwc" class="input mono" style="min-height:88px;font-size:13px" value={uri} autocomplete="off" spellcheck={false}
+                  placeholder="nostr+walletconnect://…" onInput={(e) => setUri((e.target as HTMLTextAreaElement).value)} />
+                <span class="hint">Ce code est chiffré sur le serveur et n'est jamais affiché ni partagé.</span>
+              </div>
+              {error && <ErrorBox message={error} />}
+              <button class="btn primary" disabled={busy || !uri.trim().startsWith('nostr+walletconnect://')}>{busy ? 'Vérification du wallet…' : 'Brancher mon wallet'}</button>
+              <button type="button" class="btn ghost" onClick={() => setScanning(!scanning)}>{scanning ? 'Arrêter la caméra' : 'Scanner le QR de connexion'}</button>
+            </form>
+            <p class="tiny muted">Le wallet doit gérer les factures « hold » (Alby Hub à jour, par exemple). Sans wallet branché, vos commandes restent en démonstration.</p>
+          </>
+        )}
+        {connected && error && <ErrorBox message={error} />}
+      </main>
+      <Toast text={toast} />
     </div>
   );
 }

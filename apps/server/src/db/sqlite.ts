@@ -66,6 +66,10 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE shops ADD COLUMN payout TEXT;
   `,
+  // v4 : wallet Lightning de la vendeuse (code NWC chiffré)
+  `
+  ALTER TABLE shops ADD COLUMN wallet TEXT;
+  `,
 ];
 
 export type Db = DatabaseSync;

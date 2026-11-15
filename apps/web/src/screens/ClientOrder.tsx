@@ -155,7 +155,7 @@ function OrderScreen({ order, busy, onPay }: { order: OrderView; busy: boolean; 
 function PayScreen({ order, busy, onDemoPay, onMomoPay, onCopy }: {
   order: OrderView; busy: boolean; onDemoPay: () => void; onMomoPay: (operator: string, phone: string) => void; onCopy: () => void;
 }) {
-  const [method, setMethod] = useState<'momo' | 'lightning'>('momo');
+  const [method, setMethod] = useState<'momo' | 'lightning'>(order.realWallet ? 'lightning' : 'momo');
   return (
     <>
       <TopBar subtitle={order.shopName} title={`Payer ${xof(order.totalXof)}`} />
@@ -164,7 +164,12 @@ function PayScreen({ order, busy, onDemoPay, onMomoPay, onCopy }: {
           <button type="button" aria-pressed={method === 'momo'} onClick={() => setMethod('momo')}>Mobile Money</button>
           <button type="button" aria-pressed={method === 'lightning'} onClick={() => setMethod('lightning')}>Wallet Lightning</button>
         </div>
-        {method === 'momo'
+        {order.realWallet && (
+          <div class="card ok small"><strong>Paiement Lightning réel.</strong> La facture vient du wallet de la vendeuse ; votre argent reste bloqué jusqu'à la livraison.</div>
+        )}
+        {method === 'momo' && order.realWallet
+          ? <div class="card soft small">Le paiement Mobile Money pour cette boutique arrive bientôt, avec notre partenaire de change. Payez avec votre wallet Lightning en attendant.</div>
+          : method === 'momo'
           ? <MomoPay order={order} busy={busy} onPay={onMomoPay} />
           : <LightningPay order={order} busy={busy} onDemoPay={onDemoPay} onCopy={onCopy} />}
       </main>

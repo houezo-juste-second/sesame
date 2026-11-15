@@ -58,6 +58,9 @@ export const Seed = ({ size = 20, color = '#F3AA3C', hole = '#283593' }: P & { h
 export const Phone = ({ size = 18, color = 'currentColor' }: P) => (
   <svg {...base(size, color)} stroke-width={2}><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M10.5 18h3" /></svg>
 );
+export const Bolt = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg {...base(size, color)} stroke-width={2}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>
+);
 export const Chevron = ({ size = 18, color = 'currentColor' }: P) => (
   <svg {...base(size, color)}><path d="M9 6l6 6-6 6" /></svg>
 );

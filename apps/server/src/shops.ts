@@ -38,6 +38,10 @@ export interface ShopStore {
   setSuspended(id: string, suspended: boolean): void;
   getPayout(id: string): ShopPayout | undefined;
   setPayout(id: string, payout: ShopPayout): void;
+  /** Code de connexion NWC (déchiffré à la demande, jamais exposé). */
+  getWallet(id: string): string | undefined;
+  setWallet(id: string, uri: string | null): void;
+  withWallet(): string[];
   get(id: string): Shop | undefined;
   bySlug(slug: string): Shop | undefined;
   /** Clé secrète Nostr de la boutique (déchiffrée à la demande, jamais exposée par l'API). */

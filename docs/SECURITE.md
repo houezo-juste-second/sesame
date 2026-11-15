@@ -10,6 +10,7 @@
 | PIN de la vendeuse | Base | scrypt + sel ; 5 essais par minute |
 | Numéros Mobile Money | Base | Chiffrés (AES-256-GCM) ; seuls les 2 derniers chiffres sont affichés |
 | Clés Nostr des boutiques | Base | Chiffrées (AES-256-GCM) |
+| Code de connexion du wallet de la vendeuse (NWC) | Base | Chiffré (AES-256-GCM), jamais renvoyé par l'API ni journalisé ; 5 essais de connexion par minute |
 | Intégrité de l'historique | Journal d'audit | Chaîné par hachage ; toute modification est détectée et signalée à l'administration |
 
 ## Qui pourrait attaquer, et comment
@@ -29,6 +30,7 @@
 | **Injection, entrées malformées** | Toutes les entrées validées (Zod), requêtes SQL paramétrées, corps limité à 16 Ko. |
 | **Script injecté (XSS)** | CSP stricte : aucun script externe, aucun script en ligne ; Preact échappe le contenu. |
 | **Fuite de données personnelles** | Pas de numéro, de jeton ni de secret dans les journaux (en-tête d'autorisation masqué, paramètres d'URL retirés). Numéros masqués avant tout envoi à l'IA. Reçus Nostr sans donnée personnelle. |
+| **Vol du code de connexion du wallet (NWC)** | Chiffré au repos. Il ne permet que les actions autorisées par la vendeuse dans son wallet, **dans la limite du budget** qu'elle y fixe (recommandé à l'écran). Elle peut révoquer la connexion à tout moment depuis son wallet. |
 | **Administrateur malveillant** | Aucune route ne permet de libérer, rembourser ou déplacer de l'argent ; aucun secret n'est visible. Ses actions (suspension) sont inscrites dans le journal d'audit. |
 
 ## Principes appliqués
@@ -41,5 +43,6 @@
 ## Risques résiduels
 
 - **Mobile Money :** le partenaire de change tient brièvement les fonds à l'entrée et à la sortie ; il doit être agréé.
-- **Qui reçoit les sats à la libération :** si c'est un nœud Sésame (plutôt que le partenaire), Sésame les détient quelques secondes avant le versement.
+- **Qui reçoit les sats à la libération :** avec un wallet branché (NWC), la vendeuse elle-même. En Mobile Money, si c'est un nœud Sésame plutôt que le partenaire, Sésame les détient quelques secondes avant le versement.
+- **Connexion NWC :** si la vendeuse autorise les paiements (pour payer le livreur), le serveur peut dépenser depuis son wallet dans la limite du budget fixé. Sans budget, ce risque est plus large : l'interface recommande d'en fixer un.
 - **Téléphone du client perdu :** le sésame est perdu ; la commande est remboursée à l'échéance (le client peut aussi copier son sésame en sauvegarde).

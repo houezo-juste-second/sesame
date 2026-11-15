@@ -47,6 +47,8 @@ export interface Order {
    * (ex. « momo:MTN MoMo:42 » = Mobile Money se terminant par 42). Le numéro complet reste chiffré dans la boutique.
    */
   sellerPayoutTo?: string | undefined;
+  /** Wallet qui détient la facture hold : « nwc » = wallet réel de la vendeuse ; absent ou « simulation » = démo. */
+  walletKind?: 'nwc' | 'simulation' | undefined;
   /** Comment le client a payé (affichage, remboursement). Jamais le numéro complet. */
   payment?: { method: 'momo' | 'lightning'; operator?: string | undefined; phoneHint?: string | undefined } | undefined;
   payouts: Payout[];

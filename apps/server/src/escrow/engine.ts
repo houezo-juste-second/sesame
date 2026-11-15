@@ -86,6 +86,7 @@ export interface CreateOrderInput {
   pro?: boolean;
   /** Destination du versement vendeuse (Mobile Money via partenaire) ; absent : les sats restent dans son wallet. */
   sellerPayoutTo?: string | undefined;
+  walletKind?: 'nwc' | 'simulation' | undefined;
 }
 
 export interface EngineDeps {
@@ -158,6 +159,7 @@ export class EscrowEngine {
       state: 'DRAFT',
       payouts: [],
       ...(input.sellerPayoutTo ? { sellerPayoutTo: input.sellerPayoutTo } : {}),
+      walletKind: input.walletKind ?? 'simulation',
       createdAt: now,
       updatedAt: now,
     };

@@ -139,6 +139,19 @@ export class SqliteShopStore implements ShopStore {
     this.db.prepare('UPDATE shops SET payout = ? WHERE id = ?').run(this.box.seal(JSON.stringify(payout)), id);
   }
 
+  getWallet(id: string): string | undefined {
+    const r = this.db.prepare('SELECT wallet FROM shops WHERE id = ?').get(id) as { wallet: string | null } | undefined;
+    return r?.wallet ? this.box.open(r.wallet) : undefined;
+  }
+
+  setWallet(id: string, uri: string | null): void {
+    this.db.prepare('UPDATE shops SET wallet = ? WHERE id = ?').run(uri ? this.box.seal(uri) : null, id);
+  }
+
+  withWallet(): string[] {
+    return (this.db.prepare('SELECT id FROM shops WHERE wallet IS NOT NULL').all() as Array<{ id: string }>).map((r) => r.id);
+  }
+
   get(id: string): Shop | undefined {
     return this.toShop(this.db.prepare('SELECT * FROM shops WHERE id = ?').get(id) as ShopRow | undefined);
   }

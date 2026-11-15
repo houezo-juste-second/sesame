@@ -13,6 +13,7 @@ import { extractOrder, MAX_INPUT_CHARS } from './ai/extract.js';
 import { EscrowError, type EngineEvent, type EscrowErrorCode } from './escrow/engine.js';
 import type { Order } from './escrow/types.js';
 import type { ServerContext } from './context.js';
+import { NwcError } from './wallet/nwc.js';
 import { MOMO_OPERATORS, payoutDestination, payoutLabel, type Shop, type ShopPayout } from './shops.js';
 
 class HttpError extends Error {
@@ -78,6 +79,8 @@ const PayoutInput = z.discriminatedUnion('method', [
   z.object({ method: z.literal('lightning'), address: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{1,64}@[a-z0-9.-]{1,253}\.[a-z]{2,}$/) }),
 ]);
 const MomoPayInput = z.object({ operator: Operator, phone: Phone });
+const WalletInput = z.object({ uri: z.string().trim().min(20).max(2000) });
+const REAL_WALLET_MSG = 'Paiement réel : payez avec votre wallet Lightning en scannant le QR.';
 
 /** « momo:MTN MoMo:42 » → « MTN MoMo •• 42 » */
 function destinationLabel(d: string | undefined): string | null {
@@ -127,6 +130,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   const loginLimiter = new Limiter(5, 60_000);
   const adminLimiter = new Limiter(5, 60_000);
   const demoLimiter = new Limiter(30, 60_000);
+  const walletLimiter = new Limiter(5, 60_000);
   const admin = new AdminSessions(ctx.config.adminCode);
 
   // ---------------------------------------------------------------- utilitaires
@@ -190,7 +194,8 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       releaseDeadlineAt: o.releaseDeadlineAt ?? null,
       courierAssigned: Boolean(o.courierAddress),
       createdAt: o.createdAt,
-      simulation: ctx.config.mode === 'simulation',
+      simulation: o.walletKind !== 'nwc',
+      realWallet: o.walletKind === 'nwc',
     };
     if (role === 'client') return { ...base, bolt11: o.state === 'AWAITING_PAYMENT' ? o.bolt11 ?? null : null, payment: o.payment ?? null };
     if (role === 'courier') return { ...base, courierFeeXof: o.deliveryFeeXof };
@@ -240,6 +245,10 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       return reply.status(STATUS[err.code] ?? 400).send({ error: err.code, message: err.message });
     }
     if (err instanceof HttpError) return reply.status(err.status).send({ error: err.code, message: err.message });
+    if (err instanceof NwcError) {
+      const client = ['INVALID_URI', 'HOLD_UNSUPPORTED', 'BAD_ADDRESS', 'BAD_AMOUNT'].includes(err.code);
+      return reply.status(client ? 400 : 502).send({ error: err.code, message: err.message });
+    }
     if (err instanceof ZodError) {
       return reply.status(400).send({
         error: 'VALIDATION',
@@ -277,7 +286,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     const locked = orders.filter((o) => o.state === 'FUNDS_LOCKED' || o.state === 'OUT_FOR_DELIVERY');
     const released = orders.filter((o) => o.state === 'RELEASED');
     return {
-      shop: { name: shop.name, slug: shop.slug, city: shop.city, suspended: shop.suspended, demo: shop.demo, payoutLabel: payoutLabel(ctx.shops.getPayout(shop.id)) },
+      shop: { name: shop.name, slug: shop.slug, city: shop.city, suspended: shop.suspended, demo: shop.demo, payoutLabel: payoutLabel(ctx.shops.getPayout(shop.id)), walletConnected: ctx.wallets.isConnected(shop.id) },
       orders: orders.map((o) => view(o, shop, 'seller')),
       summary: {
         releasedXof: released.reduce((s, o) => s + netXof(o), 0),
@@ -313,6 +322,33 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     return payoutView(input);
   });
 
+  // ---------------------------------------------------------------- wallet de la vendeuse (NWC)
+
+  app.get('/api/shops/me/wallet', async (req) => {
+    const shop = sellerShop(req);
+    return { connected: ctx.wallets.isConnected(shop.id) };
+  });
+
+  app.post('/api/shops/me/wallet', async (req) => {
+    const shop = sellerShop(req, true);
+    const { uri } = WalletInput.parse(req.body);
+    if (!walletLimiter.take(shop.id)) throw new HttpError(429, 'RATE_LIMITED', "Trop d'essais. Réessayez dans une minute.");
+    const info = await ctx.wallets.connect(shop.id, uri);
+    ctx.audit.append({ orderId: `shop:${shop.id}`, event: 'WALLET_CONNECTED', payload: { shop: shop.slug } });
+    return { connected: true, encryption: info.encryption, holdInvoices: true };
+  });
+
+  app.post('/api/shops/me/wallet/disconnect', async (req) => {
+    const shop = sellerShop(req);
+    const pending = (await ctx.store.listByShop(shop.id)).filter(
+      (o) => o.walletKind === 'nwc' && ['AWAITING_PAYMENT', 'FUNDS_LOCKED', 'OUT_FOR_DELIVERY'].includes(o.state),
+    );
+    if (pending.length) throw new HttpError(409, 'ORDERS_PENDING', 'Des commandes payées attendent encore leur livraison. Débranchez le wallet après.');
+    ctx.wallets.disconnect(shop.id);
+    ctx.audit.append({ orderId: `shop:${shop.id}`, event: 'WALLET_DISCONNECTED', payload: { shop: shop.slug } });
+    return { connected: false };
+  });
+
   function shopBySlug(req: FastifyRequest): Shop {
     const { slug } = z.object({ slug: z.string().max(60) }).parse(req.params);
     const shop = ctx.shops.bySlug(slug);
@@ -344,8 +380,12 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   app.post('/api/orders', async (req, reply) => {
     const shop = sellerShop(req, true);
     const input = OrderInput.parse(req.body);
+    const real = ctx.wallets.isConnected(shop.id);
     const order = await ctx.engine.createOrder({
-      shopId: shop.id, ...input, xofPerBtc: await ctx.rate.xofPerBtc(), sellerPayoutTo: payoutDestination(ctx.shops.getPayout(shop.id)),
+      shopId: shop.id, ...input, xofPerBtc: await ctx.rate.xofPerBtc(),
+      // Wallet réel : les sats arrivent directement dans le wallet de la vendeuse.
+      walletKind: real ? 'nwc' : 'simulation',
+      sellerPayoutTo: real ? undefined : payoutDestination(ctx.shops.getPayout(shop.id)),
     });
     const clientToken = ctx.tokens.issue({ role: 'client', shopId: shop.id, orderId: order.id });
     return reply.status(201).send({ order: view(order, shop, 'seller'), clientToken });
@@ -396,6 +436,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   app.post('/api/demo/pay/:id', async (req) => {
     if (ctx.config.mode !== 'simulation' || !ctx.simWallet) throw new HttpError(404, 'NOT_FOUND', 'Indisponible.');
     const { grant, order, shop } = await orderFor(req, ['client']);
+    if (order.walletKind === 'nwc') throw new HttpError(409, 'REAL_WALLET', REAL_WALLET_MSG);
     if (order.state !== 'AWAITING_PAYMENT' || !order.paymentHash) throw new EscrowError('ORDER_NOT_LOCKABLE');
     await ctx.store.save({ ...order, payment: { method: 'lightning' } });
     await ctx.simWallet.simulatePayment(order.paymentHash, order.amountMsat);
@@ -412,6 +453,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     if (ctx.config.mode !== 'simulation' || !ctx.simWallet) throw new HttpError(404, 'NOT_FOUND', 'Indisponible.');
     const { grant, order, shop } = await orderFor(req, ['client']);
     if (shop.suspended) throw new HttpError(403, 'SHOP_SUSPENDED', 'Cette boutique est suspendue : ne payez pas cette commande.');
+    if (order.walletKind === 'nwc') throw new HttpError(409, 'REAL_WALLET', 'Le paiement Mobile Money arrive bientôt. ' + REAL_WALLET_MSG);
     if (order.state !== 'AWAITING_PAYMENT' || !order.paymentHash) throw new EscrowError('ORDER_NOT_LOCKABLE');
     const { operator, phone } = MomoPayInput.parse(req.body);
     await ctx.store.save({ ...order, payment: { method: 'momo', operator, phoneHint: phone.slice(-2) } });
