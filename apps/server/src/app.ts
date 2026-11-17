@@ -529,7 +529,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
 
   app.get('/api/rate', async () => ({ xofPerBtc: await ctx.rate.xofPerBtc(), at: new Date() }));
 
-  app.get('/healthz', async () => ({ ok: true, mode: ctx.config.mode }));
+  app.get('/healthz', async () => ({ ok: true, mode: ctx.config.mode, ai: ctx.config.llm?.baseUrl && ctx.config.llm.model ? 'llm' : 'rules' }));
 
   return app;
 }

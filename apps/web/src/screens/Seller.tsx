@@ -404,7 +404,7 @@ export function SellerNewOrder() {
     setBusy(true);
     setAiNote(null);
     try {
-      const r = await api<{ itemLabel: string | null; amountXof: number | null; deliveryFeeXof: number | null; deadlineHours: number; missingFields: string[] }>(
+      const r = await api<{ itemLabel: string | null; amountXof: number | null; deliveryFeeXof: number | null; deadlineHours: number; missingFields: string[]; source: 'llm' | 'heuristic' }>(
         '/api/ai/extract-order', { token, body: { text: chat } });
       setForm({
         itemLabel: r.itemLabel ?? form.itemLabel,
@@ -413,9 +413,10 @@ export function SellerNewOrder() {
         deliveryHours: [2, 6, 12].includes(r.deadlineHours) ? r.deadlineHours : 6,
       });
       const labels: Record<string, string> = { itemLabel: t("l'article"), amountXof: t('le prix'), deliveryFeeXof: t('les frais de livraison') };
-      setAiNote(r.missingFields.length
+      const by = r.source === 'llm' ? t("Rempli par l'IA.") : t('Rempli par les règles locales (IA indisponible).');
+      setAiNote(`${by} ${r.missingFields.length
         ? t('À compléter : {fields}. Vérifiez avant de créer.', { fields: r.missingFields.map((f) => labels[f]).join(', ') })
-        : t('Champs remplis automatiquement. Vérifiez-les avant de créer la commande.'));
+        : t('Champs remplis automatiquement. Vérifiez-les avant de créer la commande.')}`);
     } catch (e) {
       setAiNote(errorText(e, 'Extraction impossible, remplissez le formulaire.'));
     } finally {

@@ -241,6 +241,8 @@ export const EN: Record<string, string> = {
   "À compléter : {fields}. Vérifiez avant de créer.": "Missing: {fields}. Check before creating.",
   "Champs remplis automatiquement. Vérifiez-les avant de créer la commande.": "Fields filled in automatically. Check them before creating the order.",
   "Remplir depuis la conversation": "Fill in from the conversation",
+  "Rempli par l'IA.": "Filled in by the AI.",
+  "Rempli par les règles locales (IA indisponible).": "Filled in by local rules (AI unavailable).",
   "Collez les messages WhatsApp du client. Les numéros de téléphone sont masqués automatiquement.": "Paste the customer's WhatsApp messages. Phone numbers are masked automatically.",
   "Je prends les 2 pagnes bleus à 18 000, livraison à Fidjrossè 1 500": "I'll take the 2 blue fabrics at 18,000, delivery to Fidjrossè 1,500",
   "Remplir automatiquement": "Fill in automatically",

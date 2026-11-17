@@ -102,3 +102,50 @@ describe('extractOrder : fournisseur LLM optionnel avec repli gratuit', () => {
     expect(r.source).toBe('heuristic');
   });
 });
+
+describe('extractOrder : réponses réelles des fournisseurs (Gemini, Groq…)', () => {
+  const cfg = (fetchImpl: (u: string, i?: RequestInit) => Promise<Response>, onError?: (r: string) => void) =>
+    ({ baseUrl: 'https://llm.example/v1beta/openai', model: 'gemini-2.5-flash', apiKey: 'k', fetchImpl, onError });
+  const answer = (content: string) => async () => Response.json({ choices: [{ message: { content } }] });
+
+  it('accepte un JSON entouré de balises ```json et des montants écrits en texte', async () => {
+    const r = await extractOrder('2 sacs à 12 500 l’unité, livraison Parcelles 1000', cfg(answer(
+      '```json\n{"itemLabel":"2 sacs à main noirs","amountXof":"25 000","deliveryFeeXof":"1 000 FCFA","deliveryArea":"Parcelles","deadlineHours":24}\n```',
+    )));
+    expect(r).toMatchObject({ source: 'llm', itemLabel: '2 sacs à main noirs', amountXof: 25_000, deliveryFeeXof: 1_000, deadlineHours: 12 });
+  });
+
+  it('réessaie sans le mode JSON forcé si le fournisseur répond 400', async () => {
+    const bodies: string[] = [];
+    const f = async (_u: string, i?: RequestInit) => {
+      bodies.push(String(i?.body));
+      if (bodies.length === 1) return Response.json({ error: { message: 'response_format not supported' } }, { status: 400 });
+      return Response.json({ choices: [{ message: { content: '{"itemLabel":"Pagne","amountXof":15000,"deliveryFeeXof":1500}' } }] });
+    };
+    const r = await extractOrder('pagne à 15000', cfg(f));
+    expect(r.source).toBe('llm');
+    expect(bodies[0]).toContain('response_format');
+    expect(bodies[1]).not.toContain('response_format');
+  });
+
+  it('signale la raison de l’échec (sans la clé) puis utilise les règles locales', async () => {
+    const reasons: string[] = [];
+    const f = async () => Response.json([{ error: { code: 400, message: 'API key not valid. Please pass a valid API key.', status: 'INVALID_ARGUMENT' } }], { status: 401 });
+    const r = await extractOrder('je prends le sac à 9000', cfg(f, (x) => reasons.push(x)));
+    expect(r.source).toBe('heuristic');
+    expect(reasons[0]).toContain('LLM_HTTP_401');
+    expect(reasons[0]).toContain('API key not valid');
+    expect(reasons.join(' ')).not.toContain('Bearer');
+  });
+});
+
+describe('règles locales : vraies conversations WhatsApp', () => {
+  it('prix à l’unité × quantité, et la livraison est le montant à côté de « livraison »', () => {
+    const r = extractOrderHeuristic("Salam, ma sœur je prends les 2 sacs à main noirs, combien? / Vendeuse: 12 500 l'unité, livraison Parcelles 1000 / Client: ok c'est bon");
+    expect(r).toMatchObject({ itemLabel: '2 sacs à main noirs', amountXof: 25_000, deliveryFeeXof: 1_000, deliveryArea: 'Parcelles' });
+  });
+  it('« chacun » vaut prix unitaire', () => {
+    const r = extractOrderHeuristic('Je prends les 3 pagnes à 5000 chacun, livraison 1000 à Cocody');
+    expect(r).toMatchObject({ amountXof: 15_000, deliveryFeeXof: 1_000 });
+  });
+});

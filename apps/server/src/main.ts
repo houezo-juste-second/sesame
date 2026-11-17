@@ -29,6 +29,23 @@ function adminCode(): string | undefined {
   return code;
 }
 
+/**
+ * IA : LLM seulement avec une clé (ou un serveur local type Ollama) ; sinon règles locales.
+ * Les valeurs sont nettoyées des espaces et retours à la ligne collés par erreur.
+ */
+function aiConfig() {
+  const baseUrl = env.SESAME_AI_BASE_URL?.trim() || undefined;
+  const apiKey = env.SESAME_AI_API_KEY?.trim() || undefined;
+  const model = env.SESAME_AI_MODEL?.trim() || undefined;
+  const local = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(baseUrl ?? '');
+  if (!(apiKey || local) || !baseUrl || !model) {
+    console.warn(`[sesame] IA : règles locales (manquant : ${[!baseUrl && 'SESAME_AI_BASE_URL', !model && 'SESAME_AI_MODEL', !(apiKey || local) && 'SESAME_AI_API_KEY'].filter(Boolean).join(', ') || 'aucun'})`);
+    return {};
+  }
+  console.log(`[sesame] IA : ${model} via ${new URL(baseUrl).host}`);
+  return { baseUrl, apiKey, model, onError: (reason: string) => console.warn('[sesame] IA indisponible, règles locales utilisées :', reason) };
+}
+
 const ctx = createServerContext({
   mode: 'simulation',
   dbPath: env.SESAME_DB_PATH ?? 'data/sesame.sqlite',
@@ -37,10 +54,7 @@ const ctx = createServerContext({
   nostrRelays: env.SESAME_NOSTR_RELAYS ? env.SESAME_NOSTR_RELAYS.split(',').map((r) => r.trim()).filter(Boolean) : [],
   onError: (e) => console.error('[sesame] reçu Nostr non émis :', e instanceof Error ? e.message : e),
   fixedXofPerBtc: env.SESAME_FIXED_RATE ? Number(env.SESAME_FIXED_RATE) : undefined,
-  // LLM seulement avec une clé, ou un serveur local (Ollama) ; sinon règles locales.
-  llm: env.SESAME_AI_API_KEY || /^https?:\/\/(localhost|127\.0\.0\.1)/.test(env.SESAME_AI_BASE_URL ?? '')
-    ? { baseUrl: env.SESAME_AI_BASE_URL, apiKey: env.SESAME_AI_API_KEY || undefined, model: env.SESAME_AI_MODEL }
-    : {},
+  llm: aiConfig(),
 });
 const app = buildApp(ctx, { logger: true });
 
