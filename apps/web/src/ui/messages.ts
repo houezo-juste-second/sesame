@@ -12,6 +12,7 @@ export interface MessageOrder {
   totalXof: number;
   deliveryFeeXof: number;
   deliveryHours: number;
+  courierFeeXof?: number | undefined;
 }
 
 export function clientMessage(o: MessageOrder, link: string): string {
@@ -34,7 +35,7 @@ export function courierMessage(o: MessageOrder, link: string): string {
     t('🛵 *Mission de livraison* pour *{shop}*', { shop: o.shopName }),
     '',
     `📦 ${o.itemLabel}`,
-    t('💵 Votre course : *{fee}*, payée dès le scan', { fee: xof(o.deliveryFeeXof) }),
+    t('💵 Votre course : *{fee}*, payée dès le scan', { fee: xof(o.courierFeeXof ?? o.deliveryFeeXof) }),
     '',
     t('✅ Le client a déjà payé. Chez lui, scannez son sésame *avant* de remettre le colis.'),
     '',

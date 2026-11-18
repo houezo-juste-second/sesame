@@ -93,6 +93,8 @@ const ERRORS_EN: Record<string, string> = {
   HOLD_UNSUPPORTED: 'This wallet does not support hold invoices. Use a compatible wallet (e.g. an up-to-date Alby Hub).',
   INVALID_URI: 'Invalid connection code: it must start with nostr+walletconnect://',
   INTERNAL: 'Internal error. Try again in a moment.',
+  AI_UNAVAILABLE: 'Screenshot reading is unavailable right now. Copy the conversation text instead.',
+  INVALID_COURIER_FEE: "The courier's share must be at least the delivery fee paid by the buyer, and no more than what you receive.",
   NO_STORAGE: 'This browser cannot keep your sésame (private browsing?). Open the link in a normal browser.',
 };
 

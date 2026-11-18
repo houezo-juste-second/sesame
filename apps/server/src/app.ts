@@ -9,7 +9,7 @@ import { STATE_LABEL_FR } from '@sesame/core';
 import { randomInt } from 'node:crypto';
 import { AdminSessions, adminOverview } from './admin.js';
 import { bearer, hashPin, verifyPin, type Grant, type Role } from './auth.js';
-import { extractOrder, MAX_INPUT_CHARS } from './ai/extract.js';
+import { AiUnavailableError, extractOrder, extractOrderFromImage, IMAGE_DATA_URL, MAX_IMAGE_BYTES, MAX_INPUT_CHARS } from './ai/extract.js';
 import { EscrowError, type EngineEvent, type EscrowErrorCode } from './escrow/engine.js';
 import type { Order } from './escrow/types.js';
 import type { ServerContext } from './context.js';
@@ -64,11 +64,13 @@ const OrderInput = z.object({
   itemXof: z.number().int().min(1).max(5_000_000),
   deliveryFeeXof: z.number().int().min(0).max(1_000_000),
   deliveryHours: z.number().int().min(2).max(12),
+  courierFeeXof: z.number().int().min(0).max(1_000_000).optional(),
 });
 const LockInput = z.object({ paymentHash: z.string().regex(/^[0-9a-fA-F]{64}$/) });
 const ReleaseInput = z.object({ preimage: z.string().regex(/^[0-9a-fA-F]{64}$/) });
 const AssignInput = z.object({ lightningAddress: z.string().trim().min(3).max(320) });
 const ExtractInput = z.object({ text: z.string().min(1).max(MAX_INPUT_CHARS) });
+const ImageInput = z.object({ image: z.string().max(Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 40).regex(IMAGE_DATA_URL) });
 const IdParam = z.object({ id: z.string().uuid() });
 const AdminLoginInput = z.object({ code: z.string().min(1).max(128) });
 const SuspendInput = z.object({ suspended: z.boolean() });
@@ -131,6 +133,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   const adminLimiter = new Limiter(5, 60_000);
   const demoLimiter = new Limiter(30, 60_000);
   const walletLimiter = new Limiter(5, 60_000);
+  const imageLimiter = new Limiter(10, 60_000);
   const admin = new AdminSessions(ctx.config.adminCode);
 
   // ---------------------------------------------------------------- utilitaires
@@ -172,8 +175,10 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     };
   }
 
+  const courierFee = (o: Order) => o.courierFeeXof ?? o.deliveryFeeXof;
+
   function netXof(o: Order): number {
-    return o.itemXof + o.deliveryFeeXof - (o.courierAddress ? o.deliveryFeeXof : 0) - o.feeXof;
+    return o.itemXof + o.deliveryFeeXof - (o.courierAddress ? courierFee(o) : 0) - o.feeXof;
   }
 
   function view(o: Order, shop: Shop, role: Role) {
@@ -198,10 +203,11 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       realWallet: o.walletKind === 'nwc',
     };
     if (role === 'client') return { ...base, bolt11: o.state === 'AWAITING_PAYMENT' ? o.bolt11 ?? null : null, payment: o.payment ?? null };
-    if (role === 'courier') return { ...base, courierFeeXof: o.deliveryFeeXof };
+    if (role === 'courier') return { ...base, courierFeeXof: courierFee(o) };
     return {
       ...base,
       courierAddress: o.courierAddress ?? null,
+      courierFeeXof: courierFee(o),
       feeXof: o.feeXof,
       netXof: netXof(o),
       payouts: o.payouts.map((p) => ({ kind: p.kind, status: p.status })),
@@ -525,6 +531,21 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     sellerShop(req, true);
     const { text } = ExtractInput.parse(req.body);
     return extractOrder(text, ctx.config.llm ?? {});
+  });
+
+  /** Capture d'écran d'une conversation → commande (IA « vision » uniquement ; image ni stockée ni journalisée). */
+  app.post('/api/ai/extract-order-image', { bodyLimit: 2_200_000 }, async (req) => {
+    const shop = sellerShop(req, true);
+    if (!imageLimiter.take(shop.id)) throw new HttpError(429, 'RATE_LIMITED', "Trop d'essais. Réessayez dans une minute.");
+    const { image } = ImageInput.parse(req.body);
+    try {
+      return await extractOrderFromImage(image, ctx.config.llm ?? {});
+    } catch (e) {
+      if (e instanceof AiUnavailableError) {
+        throw new HttpError(503, 'AI_UNAVAILABLE', "Lecture de la capture indisponible pour le moment. Copiez plutôt le texte de la conversation.");
+      }
+      throw e;
+    }
   });
 
   app.get('/api/rate', async () => ({ xofPerBtc: await ctx.rate.xofPerBtc(), at: new Date() }));

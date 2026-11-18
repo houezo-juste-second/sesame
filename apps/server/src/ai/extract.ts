@@ -189,7 +189,9 @@ const SYSTEM_PROMPT = [
   "N'invente rien : mets null si une information est absente.",
 ].join('\n');
 
-async function callLlm(text: string, cfg: LlmConfig & { baseUrl: string; model: string }, jsonMode: boolean): Promise<Response> {
+type LlmMessage = { role: 'system' | 'user'; content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> };
+
+async function callLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string; model: string }, jsonMode: boolean): Promise<Response> {
   const doFetch = cfg.fetchImpl ?? ((u: string, i?: RequestInit) => fetch(u, i));
   return doFetch(`${cfg.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -201,12 +203,9 @@ async function callLlm(text: string, cfg: LlmConfig & { baseUrl: string; model: 
       model: cfg.model,
       temperature: 0,
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `<conversation>\n${text}\n</conversation>` },
-      ],
+      messages,
     }),
-    signal: AbortSignal.timeout(cfg.timeoutMs ?? 15_000),
+    signal: AbortSignal.timeout(cfg.timeoutMs ?? 20_000),
   });
 }
 
@@ -222,9 +221,16 @@ async function providerError(res: Response): Promise<string> {
 }
 
 async function extractWithLlm(text: string, cfg: LlmConfig & { baseUrl: string; model: string }) {
-  let res = await callLlm(text, cfg, true);
+  return askLlm([
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: `<conversation>\n${text}\n</conversation>` },
+  ], cfg);
+}
+
+async function askLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string; model: string }) {
+  let res = await callLlm(messages, cfg, true);
   // Certains fournisseurs refusent le mode JSON forcé : nouvel essai sans.
-  if (res.status === 400) res = await callLlm(text, cfg, false);
+  if (res.status === 400) res = await callLlm(messages, cfg, false);
   if (!res.ok) throw new Error(await providerError(res));
   const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = body.choices?.[0]?.message?.content;
@@ -253,5 +259,51 @@ export async function extractOrder(input: string, cfg: LlmConfig): Promise<Extra
   } catch (e) {
     cfg.onError?.(e instanceof Error ? e.message : String(e));
     return heuristic;
+  }
+}
+
+// ---------------------------------------------------------------- capture d'écran (IA uniquement)
+
+/** Lecture de capture impossible : IA absente ou en échec. La vendeuse colle alors le texte. */
+export class AiUnavailableError extends Error {
+  constructor(readonly reason: string) {
+    super('AI_UNAVAILABLE');
+  }
+}
+
+/** Image acceptée : JPEG, PNG ou WebP en data URL, 1,5 Mo au plus une fois décodée. */
+export const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+export const MAX_IMAGE_BYTES = 1_500_000;
+
+/**
+ * Lit la commande sur une capture d'écran de conversation (Gemini et autres modèles « vision »).
+ * Pas de repli hors ligne : sans IA, on ne sait pas lire une image.
+ * L'image n'est ni stockée ni journalisée.
+ */
+export async function extractOrderFromImage(dataUrl: string, cfg: LlmConfig): Promise<ExtractedOrder> {
+  if (!cfg.baseUrl || !cfg.model) throw new AiUnavailableError('AI_NOT_CONFIGURED');
+  try {
+    const a = await askLlm([
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: "Capture d'écran d'une conversation de vente (WhatsApp, Instagram…). Extrais la commande." },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ], { ...cfg, baseUrl: cfg.baseUrl, model: cfg.model });
+    const base = { itemLabel: a.itemLabel, amountXof: a.amountXof, deliveryFeeXof: a.deliveryFeeXof };
+    return {
+      ...base,
+      deliveryArea: a.deliveryArea ?? null,
+      deadlineHours: a.deadlineHours ?? DEFAULT_DEADLINE_HOURS,
+      missingFields: missing(base),
+      source: 'llm',
+    };
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    cfg.onError?.(reason);
+    throw new AiUnavailableError(reason);
   }
 }

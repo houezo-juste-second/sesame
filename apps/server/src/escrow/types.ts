@@ -23,6 +23,11 @@ export interface Order {
   xofPerBtc: number;
   /** Montant payé par le client : article + livraison. */
   amountMsat: bigint;
+  /**
+   * Part du livreur, en FCFA. Au moins les frais de livraison payés par le client :
+   * la vendeuse peut offrir tout ou partie de la livraison, jamais en garder une partie.
+   */
+  courierFeeXof?: number | undefined;
   /** Part du livreur (incluse dans amountMsat). */
   courierMsat: bigint;
   /** Frais de service Sésame, prélevés sur la part vendeuse à la libération. */

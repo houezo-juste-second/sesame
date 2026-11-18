@@ -315,4 +315,17 @@ export const EN: Record<string, string> = {
   "{date} vers {h}h": "{date} around {h}:00",
   "Livrée, paiement prouvé": "Delivered, payment proven",
   "Reçu invalide": "Invalid receipt",
+
+  // Capture d'écran et part du livreur
+  "Lecture de la capture…": "Reading the screenshot…",
+  "Cette image n'a pas pu être lue. Essayez une autre capture, ou copiez le texte.": "This image could not be read. Try another screenshot, or copy the text.",
+  "Collez les messages WhatsApp du client, ou une capture d’écran de la conversation.": "Paste the customer's WhatsApp messages, or a screenshot of the conversation.",
+  "Importer une capture": "Import a screenshot",
+  "Capture importée": "Imported screenshot",
+  "Les numéros sont masqués dans le texte collé. Une capture est envoyée telle quelle à l’IA (Google Gemini) pour être lue, puis oubliée : elle peut contenir des noms et des numéros.": "Phone numbers are masked in pasted text. A screenshot is sent as is to the AI (Google Gemini) to be read, then discarded: it may contain names and phone numbers.",
+  "Part du livreur (FCFA)": "Courier's share (CFA)",
+  "Le livreur doit recevoir au moins les frais de livraison payés par le client ({fee}).": "The courier must receive at least the delivery fee paid by the buyer ({fee}).",
+  "Par défaut, le livreur reçoit tous les frais de livraison. Pour offrir la livraison, mettez 0 en livraison et indiquez ici ce que vous payez au livreur.": "By default, the courier gets the whole delivery fee. To offer free delivery, set delivery to 0 and enter here what you pay the courier.",
+  "Livraison offerte : vous payez {gift} de la course sur votre part.": "Free delivery: you pay {gift} of the courier's fee from your share.",
+  "La part du livreur dépasse ce qui vous revient.": "The courier's share is more than what you receive.",
 };

@@ -61,6 +61,9 @@ export const Phone = ({ size = 18, color = 'currentColor' }: P) => (
 export const Bolt = ({ size = 18, color = 'currentColor' }: P) => (
   <svg {...base(size, color)} stroke-width={2}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>
 );
+export const Camera = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg {...base(size, color)} stroke-width={2}><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+);
 export const Chevron = ({ size = 18, color = 'currentColor' }: P) => (
   <svg {...base(size, color)}><path d="M9 6l6 6-6 6" /></svg>
 );

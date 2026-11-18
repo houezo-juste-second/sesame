@@ -29,6 +29,7 @@ export const ERROR_MESSAGES = {
   INVALID_ITEM_LABEL: "Le nom de l'article est obligatoire (120 caractères maximum).",
   INVALID_AMOUNT: 'Le prix doit être un nombre entier de FCFA, entre 1 et 5 000 000.',
   INVALID_DELIVERY_FEE: 'Les frais de livraison doivent être un nombre entier de FCFA positif ou nul.',
+  INVALID_COURIER_FEE: 'La part du livreur doit être au moins égale aux frais de livraison payés par le client, sans dépasser ce qui vous revient.',
   INVALID_DELIVERY_HOURS: 'Le délai de livraison doit être compris entre 2 et 12 heures.',
   INVALID_PAYMENT_HASH: 'Code de paiement invalide.',
   PAYMENT_HASH_REUSED: 'Ce code de paiement a déjà été utilisé.',
@@ -84,6 +85,8 @@ export interface CreateOrderInput {
   deliveryHours: number;
   xofPerBtc: number;
   pro?: boolean;
+  /** Part du livreur (FCFA) ; absente : égale aux frais de livraison. */
+  courierFeeXof?: number | undefined;
   /** Destination du versement vendeuse (Mobile Money via partenaire) ; absent : les sats restent dans son wallet. */
   sellerPayoutTo?: string | undefined;
   walletKind?: 'nwc' | 'simulation' | undefined;
@@ -134,13 +137,19 @@ export class EscrowEngine {
     if (!Number.isInteger(input.deliveryHours) || input.deliveryHours < 2 || input.deliveryHours > 12) {
       throw new EscrowError('INVALID_DELIVERY_HOURS');
     }
+    const courierFeeXof = input.courierFeeXof ?? input.deliveryFeeXof;
     let amountMsat: bigint, courierMsat: bigint, feeMsat: bigint, feeXof: number;
     try {
-      amountMsat = xofToMsat(input.itemXof + input.deliveryFeeXof, input.xofPerBtc);
-      courierMsat = input.deliveryFeeXof > 0 ? xofToMsat(input.deliveryFeeXof, input.xofPerBtc) : 0n;
       feeXof = serviceFeeXof(input.itemXof, { pro: input.pro ?? false });
+      // Le livreur reçoit au moins ce que le client paie pour la livraison ; la vendeuse peut ajouter
+      // de sa part (livraison offerte), sans dépasser ce qui lui revient.
+      if (!Number.isSafeInteger(courierFeeXof) || courierFeeXof < input.deliveryFeeXof
+        || courierFeeXof > input.itemXof + input.deliveryFeeXof - feeXof) throw new EscrowError('INVALID_COURIER_FEE');
+      amountMsat = xofToMsat(input.itemXof + input.deliveryFeeXof, input.xofPerBtc);
+      courierMsat = courierFeeXof > 0 ? xofToMsat(courierFeeXof, input.xofPerBtc) : 0n;
       feeMsat = xofToMsat(feeXof, input.xofPerBtc);
-    } catch {
+    } catch (e) {
+      if (e instanceof EscrowError) throw e;
       throw new EscrowError('INVALID_AMOUNT');
     }
     const now = this.clock();
@@ -151,6 +160,7 @@ export class EscrowEngine {
       itemXof: input.itemXof,
       deliveryFeeXof: input.deliveryFeeXof,
       deliveryHours: input.deliveryHours,
+      courierFeeXof,
       xofPerBtc: input.xofPerBtc,
       amountMsat,
       courierMsat,

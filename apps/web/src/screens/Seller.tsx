@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 import { serviceFeeXof } from '@sesame/core';
 import { api, ApiError, initials, local, MOMO_OPERATORS, SELLER_KEY, subscribe, xof, type OrderView } from '../api.js';
 import { navigate } from '../router.js';
-import { Bolt, Chevron, Logout, Phone, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
+import { Bolt, Camera, Chevron, Logout, Phone, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
+import { imageFromClipboard, shrinkImage } from '../ui/image.js';
 import type { Scanner as ScannerType } from '../ui/Scanner.js';
 import { copyText, ErrorBox, LangToggle, Loading, SimBanner, Toast, TopBar, useToast, whatsappUrl } from '../ui/kit.js';
 import { errorText, locale, stateLabel, t } from '../i18n.js';
@@ -388,7 +389,8 @@ export function SellerNewOrder() {
   const [token] = useSellerToken();
   const [chat, setChat] = useState('');
   const [aiNote, setAiNote] = useState<string | null>(null);
-  const [form, setForm] = useState({ itemLabel: '', itemXof: '', deliveryFeeXof: '', deliveryHours: 6 });
+  const [shot, setShot] = useState<string | null>(null);
+  const [form, setForm] = useState({ itemLabel: '', itemXof: '', deliveryFeeXof: '', courierFeeXof: '', deliveryHours: 6 });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -398,27 +400,54 @@ export function SellerNewOrder() {
   const num = (s: string) => Number(s.replace(/[^\d]/g, '')) || 0;
   const item = num(form.itemXof);
   const delivery = num(form.deliveryFeeXof);
+  // Part du livreur : par défaut les frais de livraison ; la vendeuse peut offrir plus, jamais garder une partie.
+  const courierTyped = form.courierFeeXof.trim() !== '';
+  const courier = courierTyped ? num(form.courierFeeXof) : delivery;
   const fee = item > 0 ? serviceFeeXof(item) : 0;
+  const net = item + delivery - courier - fee;
+  const courierTooLow = courierTyped && courier < delivery;
+  const courierTooHigh = net < 0;
+
+  type Extracted = { itemLabel: string | null; amountXof: number | null; deliveryFeeXof: number | null; deadlineHours: number; missingFields: string[]; source: 'llm' | 'heuristic' };
+
+  function apply(r: Extracted) {
+    setForm({
+      ...form,
+      itemLabel: r.itemLabel ?? form.itemLabel,
+      itemXof: r.amountXof ? String(r.amountXof) : form.itemXof,
+      deliveryFeeXof: r.deliveryFeeXof !== null ? String(r.deliveryFeeXof) : form.deliveryFeeXof,
+      deliveryHours: [2, 6, 12].includes(r.deadlineHours) ? r.deadlineHours : 6,
+    });
+    const labels: Record<string, string> = { itemLabel: t("l'article"), amountXof: t('le prix'), deliveryFeeXof: t('les frais de livraison') };
+    const by = r.source === 'llm' ? t("Rempli par l'IA.") : t('Rempli par les règles locales (IA indisponible).');
+    setAiNote(`${by} ${r.missingFields.length
+      ? t('À compléter : {fields}. Vérifiez avant de créer.', { fields: r.missingFields.map((f) => labels[f]).join(', ') })
+      : t('Champs remplis automatiquement. Vérifiez-les avant de créer la commande.')}`);
+  }
 
   async function fill() {
     setBusy(true);
     setAiNote(null);
     try {
-      const r = await api<{ itemLabel: string | null; amountXof: number | null; deliveryFeeXof: number | null; deadlineHours: number; missingFields: string[]; source: 'llm' | 'heuristic' }>(
-        '/api/ai/extract-order', { token, body: { text: chat } });
-      setForm({
-        itemLabel: r.itemLabel ?? form.itemLabel,
-        itemXof: r.amountXof ? String(r.amountXof) : form.itemXof,
-        deliveryFeeXof: r.deliveryFeeXof !== null ? String(r.deliveryFeeXof) : form.deliveryFeeXof,
-        deliveryHours: [2, 6, 12].includes(r.deadlineHours) ? r.deadlineHours : 6,
-      });
-      const labels: Record<string, string> = { itemLabel: t("l'article"), amountXof: t('le prix'), deliveryFeeXof: t('les frais de livraison') };
-      const by = r.source === 'llm' ? t("Rempli par l'IA.") : t('Rempli par les règles locales (IA indisponible).');
-      setAiNote(`${by} ${r.missingFields.length
-        ? t('À compléter : {fields}. Vérifiez avant de créer.', { fields: r.missingFields.map((f) => labels[f]).join(', ') })
-        : t('Champs remplis automatiquement. Vérifiez-les avant de créer la commande.')}`);
+      apply(await api<Extracted>('/api/ai/extract-order', { token, body: { text: chat } }));
     } catch (e) {
       setAiNote(errorText(e, 'Extraction impossible, remplissez le formulaire.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Capture d'écran : réduite sur le téléphone, puis lue par l'IA. */
+  async function readShot(file: Blob | null) {
+    if (!file) return;
+    setBusy(true);
+    setAiNote(t('Lecture de la capture…'));
+    try {
+      const image = await shrinkImage(file);
+      setShot(image);
+      apply(await api<Extracted>('/api/ai/extract-order-image', { token, body: { image } }));
+    } catch (e) {
+      setAiNote(e instanceof ApiError ? errorText(e) : t("Cette image n'a pas pu être lue. Essayez une autre capture, ou copiez le texte."));
     } finally {
       setBusy(false);
     }
@@ -430,7 +459,11 @@ export function SellerNewOrder() {
     setError(null);
     try {
       const r = await api<{ order: OrderView; clientToken: string }>('/api/orders', {
-        token, body: { itemLabel: form.itemLabel, itemXof: item, deliveryFeeXof: delivery, deliveryHours: form.deliveryHours },
+        token,
+        body: {
+          itemLabel: form.itemLabel, itemXof: item, deliveryFeeXof: delivery, deliveryHours: form.deliveryHours,
+          ...(courierTyped && courier !== delivery ? { courierFeeXof: courier } : {}),
+        },
       });
       local.set(clientTokKey(r.order.id), r.clientToken);
       navigate(`/v/o/${r.order.id}`);
@@ -448,10 +481,20 @@ export function SellerNewOrder() {
           <div class="row" style="gap:8px">
             <Sparkle color="var(--indigo)" /><h3 style="color:var(--indigo-ink)">{t('Remplir depuis la conversation')}</h3>
           </div>
-          <label class="hint" for="chat">{t('Collez les messages WhatsApp du client. Les numéros de téléphone sont masqués automatiquement.')}</label>
+          <label class="hint" for="chat">{t('Collez les messages WhatsApp du client, ou une capture d’écran de la conversation.')}</label>
           <textarea id="chat" class="input" value={chat} maxLength={4000} onInput={(e) => setChat((e.target as HTMLTextAreaElement).value)}
+            onPaste={(e) => { const img = imageFromClipboard(e); if (img) { e.preventDefault(); void readShot(img); } }}
             placeholder={t('Je prends les 2 pagnes bleus à 18 000, livraison à Fidjrossè 1 500')} />
-          <button type="button" class="btn ghost" disabled={busy || chat.trim().length < 5} onClick={fill}>{t('Remplir automatiquement')}</button>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn ghost" style="flex:1 1 160px" disabled={busy || chat.trim().length < 5} onClick={fill}>{t('Remplir automatiquement')}</button>
+            <label class={`btn ghost shot-btn${busy ? ' disabled' : ''}`} style="flex:1 1 160px">
+              <Camera size={18} /> {t('Importer une capture')}
+              <input type="file" accept="image/*" class="visually-hidden" disabled={busy}
+                onChange={(e) => { const f = (e.target as HTMLInputElement).files?.[0] ?? null; (e.target as HTMLInputElement).value = ''; void readShot(f); }} />
+            </label>
+          </div>
+          {shot && <img class="shot-preview" src={shot} alt={t('Capture importée')} />}
+          <p class="tiny muted">{t('Les numéros sont masqués dans le texte collé. Une capture est envoyée telle quelle à l’IA (Google Gemini) pour être lue, puis oubliée : elle peut contenir des noms et des numéros.')}</p>
           {aiNote && <div class="hint" role="status">{aiNote}</div>}
         </section>
 
@@ -466,6 +509,16 @@ export function SellerNewOrder() {
             <input id="deliv" class="input" inputMode="numeric" value={form.deliveryFeeXof} onInput={(e) => setForm({ ...form, deliveryFeeXof: (e.target as HTMLInputElement).value })} /></div>
         </div>
         <div class="field">
+          <label for="courier">{t('Part du livreur (FCFA)')}</label>
+          <input id="courier" class="input" inputMode="numeric" value={form.courierFeeXof} placeholder={String(delivery)}
+            onInput={(e) => setForm({ ...form, courierFeeXof: (e.target as HTMLInputElement).value })} />
+          <span class={courierTooLow ? 'error-text' : 'hint'}>
+            {courierTooLow
+              ? t('Le livreur doit recevoir au moins les frais de livraison payés par le client ({fee}).', { fee: xof(delivery) })
+              : t('Par défaut, le livreur reçoit tous les frais de livraison. Pour offrir la livraison, mettez 0 en livraison et indiquez ici ce que vous payez au livreur.')}
+          </span>
+        </div>
+        <div class="field">
           <span class="label" id="delai">{t('Délai de livraison')}</span>
           <div class="segmented" role="group" aria-labelledby="delai">
             {[2, 6, 12].map((h) => (
@@ -476,14 +529,16 @@ export function SellerNewOrder() {
         {item > 0 && (
           <section class="card stack small" style="gap:8px">
             <div class="between"><span class="muted">{t('Le client paie')}</span><strong>{xof(item + delivery)}</strong></div>
-            {delivery > 0 && <div class="between"><span class="muted">{t('Part du livreur')}</span><span>− {xof(delivery)}</span></div>}
+            {courier > 0 && <div class="between"><span class="muted">{t('Part du livreur')}</span><span>− {xof(courier)}</span></div>}
             <div class="between"><span class="muted">{t('Frais Sésame (1 %, seulement si livré)')}</span><span>− {xof(fee)}</span></div>
             <div class="divider" />
-            <div class="between"><span style="font-weight:700">{t('Vous recevez')}</span><strong class="big-amount" style="color:var(--leaf)">{xof(item - fee)}</strong></div>
+            <div class="between"><span style="font-weight:700">{t('Vous recevez')}</span><strong class="big-amount" style={`color:${net < 0 ? 'var(--clay)' : 'var(--leaf)'}`}>{xof(net)}</strong></div>
+            {courier > delivery && !courierTooHigh && <div class="tiny muted">{t('Livraison offerte : vous payez {gift} de la course sur votre part.', { gift: xof(courier - delivery) })}</div>}
+            {courierTooHigh && <div class="error-text">{t('La part du livreur dépasse ce qui vous revient.')}</div>}
           </section>
         )}
         {error && <ErrorBox message={error} />}
-        <button class="btn success" disabled={busy || !form.itemLabel || item <= 0}>{t('Créer la commande')}</button>
+        <button class="btn success" disabled={busy || !form.itemLabel || item <= 0 || courierTooLow || courierTooHigh}>{t('Créer la commande')}</button>
       </form>
     </div>
   );
@@ -545,7 +600,7 @@ export function SellerOrder({ id }: { id: string }) {
         <section class="card stack small" style="gap:6px">
           <div class="between"><span class="muted">{t('Le client paie')}</span><strong>{xof(order.totalXof)}</strong></div>
           <div class="between"><span class="muted">{t('Frais Sésame')}</span><span>− {xof(order.feeXof ?? 0)}</span></div>
-          {order.courierAssigned && <div class="between"><span class="muted">{t('Livreur ({address})', { address: order.courierAddress ?? '' })}</span><span>− {xof(order.deliveryFeeXof)}</span></div>}
+          {order.courierAssigned && <div class="between"><span class="muted">{t('Livreur ({address})', { address: order.courierAddress ?? '' })}</span><span>− {xof(order.courierFeeXof ?? order.deliveryFeeXof)}</span></div>}
           <div class="divider" />
           <div class="between"><span style="font-weight:700">{t('Vous recevez à la livraison')}</span><strong class="big-amount" style="color:var(--leaf)">{xof(order.netXof ?? 0)}</strong></div>
           <div class="tiny muted">{order.sellerPayoutLabel ? t('Versé sur votre {label}', { label: order.sellerPayoutLabel }) : t('Reçu dans votre wallet Lightning')}{order.payment?.method === 'momo' ? t('. Le client a payé avec {op}.', { op: order.payment.operator ?? '' }) : order.payment?.method === 'lightning' ? t('. Le client a payé avec un wallet Lightning.') : '.'}</div>
