@@ -276,7 +276,9 @@ async function askLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string
         const reason = e instanceof Error ? e.message : String(e);
         const status = Number(/^LLM_HTTP_(\d+)/.exec(reason)?.[1] ?? 0);
         const timeout = /TimeoutError|aborted/i.test(reason) || (e instanceof Error && e.name === 'TimeoutError');
-        if (attempt === 0 && TRANSIENT.has(status) && !timeout) {
+        // Quota épuisé (429 « quota ») : réessayer ne sert à rien et gaspille le quota des autres modèles.
+        const quota = status === 429 && /quota/i.test(reason);
+        if (attempt === 0 && TRANSIENT.has(status) && !timeout && !quota) {
           await sleep(cfg.retryDelayMs ?? 800);
           continue;
         }

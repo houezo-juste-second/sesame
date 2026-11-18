@@ -46,7 +46,7 @@ function aiConfig() {
   console.log(`[sesame] IA : ${model.split(',').map((m) => m.trim()).join(' → repli ')} via ${new URL(baseUrl).host}`);
   // Diagnostic : modèles « flash » disponibles pour cette clé (noms seulement, jamais la clé).
   void listProviderModels({ baseUrl, apiKey }).then((ids) => {
-    const flash = ids.filter((id) => /flash/i.test(id)).slice(0, 20);
+    const flash = ids.filter((id) => /flash|lite|llama|scout|vision/i.test(id) && !/tts|image|embed/i.test(id)).slice(0, 25);
     if (flash.length) console.log(`[sesame] IA : modèles disponibles : ${flash.join(', ')}`);
   }).catch(() => undefined);
   return { baseUrl, apiKey, model, onError: (reason: string) => console.warn('[sesame] IA indisponible, règles locales utilisées :', reason) };

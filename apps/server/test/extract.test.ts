@@ -232,3 +232,20 @@ describe('extractOrder : Gemini en mode rapide', () => {
     expect(asked[0]!.reasoning).toBe('none');
   });
 });
+
+describe('extractOrder : quota épuisé', () => {
+  it('ne réessaie pas un modèle dont le quota est épuisé (429 quota) et passe au suivant', async () => {
+    const asked: string[] = [];
+    const r = await extractOrder('la robe à 35 mille', {
+      baseUrl: 'https://llm.example/v1', model: 'sans-quota,lite', apiKey: 'k', retryDelayMs: 0,
+      fetchImpl: async (_u, init) => {
+        const m = JSON.parse(String(init?.body)).model as string;
+        asked.push(m);
+        if (m === 'sans-quota') return Response.json({ error: { message: 'You exceeded your current quota, please check your plan.' } }, { status: 429 });
+        return Response.json({ choices: [{ message: { content: '{"itemLabel":"Robe","amountXof":35000,"deliveryFeeXof":null}' } }] });
+      },
+    });
+    expect(r.source).toBe('llm');
+    expect(asked).toEqual(['sans-quota', 'lite']);
+  });
+});
