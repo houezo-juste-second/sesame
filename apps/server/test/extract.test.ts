@@ -149,3 +149,43 @@ describe('règles locales : vraies conversations WhatsApp', () => {
     expect(r).toMatchObject({ amountXof: 15_000, deliveryFeeXof: 1_000 });
   });
 });
+
+describe('extractOrder : surcharge du fournisseur et modèles de repli', () => {
+  const ok = Response.json({ choices: [{ message: { content: '{"itemLabel":"Robe en bazin","amountXof":35000,"deliveryFeeXof":2000,"deliveryArea":"Calavi"}' } }] });
+  const busy = () => Response.json({ error: { message: 'This model is currently experiencing high demand.' } }, { status: 503 });
+
+  it('réessaie une fois quand le modèle est surchargé (503)', async () => {
+    let n = 0;
+    const r = await extractOrder('la robe à 35 mille, 2000 pour Calavi', {
+      baseUrl: 'https://llm.example/v1', model: 'gemini-3.8-flash', apiKey: 'k', retryDelayMs: 0,
+      fetchImpl: async () => (++n === 1 ? busy() : ok.clone()),
+    });
+    expect(r).toMatchObject({ source: 'llm', amountXof: 35_000, deliveryFeeXof: 2_000 });
+    expect(n).toBe(2);
+  });
+
+  it('passe au modèle suivant si le premier est retiré (404) ou reste surchargé', async () => {
+    const asked: string[] = [];
+    const r = await extractOrder('la robe à 35 mille', {
+      baseUrl: 'https://llm.example/v1', model: 'ancien-modele, modele-surcharge, modele-ok', apiKey: 'k', retryDelayMs: 0,
+      fetchImpl: async (_u, init) => {
+        const m = JSON.parse(String(init?.body)).model as string;
+        asked.push(m);
+        if (m === 'ancien-modele') return Response.json({ error: { message: 'no longer available' } }, { status: 404 });
+        if (m === 'modele-surcharge') return busy();
+        return ok.clone();
+      },
+    });
+    expect(r.source).toBe('llm');
+    expect(asked).toEqual(['ancien-modele', 'modele-surcharge', 'modele-surcharge', 'modele-ok']);
+  });
+
+  it('si tous les modèles échouent : règles locales, avec la raison de chaque modèle', async () => {
+    const reasons: string[] = [];
+    const r = await extractOrder('je prends le sac à 9000', {
+      baseUrl: 'https://llm.example/v1', model: 'a,b', apiKey: 'k', retryDelayMs: 0, fetchImpl: async () => busy(), onError: (x) => reasons.push(x),
+    });
+    expect(r.source).toBe('heuristic');
+    expect(reasons[0]).toMatch(/a → LLM_HTTP_503.*\| b → LLM_HTTP_503/);
+  });
+});

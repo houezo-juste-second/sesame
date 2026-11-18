@@ -27,6 +27,8 @@ export interface LlmConfig {
   model?: string | undefined;
   timeoutMs?: number | undefined;
   fetchImpl?: ((url: string, init?: RequestInit) => Promise<Response>) | undefined;
+  /** Pause avant un nouvel essai quand le fournisseur est surchargé (tests : 0). */
+  retryDelayMs?: number | undefined;
   /** Appelé quand le LLM échoue (raison sans aucune clé ni texte de conversation), pour les journaux. */
   onError?: ((reason: string) => void) | undefined;
 }
@@ -205,7 +207,7 @@ async function callLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: strin
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
       messages,
     }),
-    signal: AbortSignal.timeout(cfg.timeoutMs ?? 20_000),
+    signal: AbortSignal.timeout(cfg.timeoutMs ?? 12_000),
   });
 }
 
@@ -227,7 +229,38 @@ async function extractWithLlm(text: string, cfg: LlmConfig & { baseUrl: string; 
   ], cfg);
 }
 
+/** Erreurs passagères du fournisseur (surcharge, quota par minute, panne) : on réessaie ou on change de modèle. */
+const TRANSIENT = new Set([429, 500, 502, 503, 504]);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Essaie chaque modèle de la liste (« modele1,modele2 ») : un nouvel essai si le fournisseur est surchargé,
+ * puis le modèle suivant. Retourne la première réponse valide.
+ */
 async function askLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string; model: string }) {
+  const models = cfg.model.split(',').map((m) => m.trim()).filter(Boolean);
+  const reasons: string[] = [];
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await askOneModel(messages, { ...cfg, model });
+      } catch (e) {
+        const reason = e instanceof Error ? e.message : String(e);
+        const status = Number(/^LLM_HTTP_(\d+)/.exec(reason)?.[1] ?? 0);
+        const timeout = /TimeoutError|aborted/i.test(reason) || (e instanceof Error && e.name === 'TimeoutError');
+        if (attempt === 0 && (TRANSIENT.has(status) || timeout)) {
+          await sleep(cfg.retryDelayMs ?? 800);
+          continue;
+        }
+        reasons.push(`${model} → ${timeout ? 'LLM_TIMEOUT' : reason}`);
+        break;
+      }
+    }
+  }
+  throw new Error(reasons.join(' | ').slice(0, 600) || 'LLM_NO_MODEL');
+}
+
+async function askOneModel(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string; model: string }) {
   let res = await callLlm(messages, cfg, true);
   // Certains fournisseurs refusent le mode JSON forcé : nouvel essai sans.
   if (res.status === 400) res = await callLlm(messages, cfg, false);
@@ -306,4 +339,20 @@ export async function extractOrderFromImage(dataUrl: string, cfg: LlmConfig): Pr
     cfg.onError?.(reason);
     throw new AiUnavailableError(reason);
   }
+}
+
+/**
+ * Diagnostic au démarrage : modèles proposés par le fournisseur pour cette clé (noms seulement).
+ * Aide à choisir SESAME_AI_MODEL sans deviner. Ne bloque jamais le démarrage.
+ */
+export async function listProviderModels(cfg: LlmConfig): Promise<string[]> {
+  if (!cfg.baseUrl) return [];
+  const doFetch = cfg.fetchImpl ?? ((u: string, i?: RequestInit) => fetch(u, i));
+  const res = await doFetch(`${cfg.baseUrl.replace(/\/$/, '')}/models`, {
+    headers: cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {},
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) return [];
+  const body = (await res.json()) as { data?: Array<{ id?: string }> };
+  return (body.data ?? []).map((m) => String(m.id ?? '').replace(/^models\//, '')).filter(Boolean);
 }

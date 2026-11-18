@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import fastifyStatic from '@fastify/static';
 import { buildApp } from './app.js';
 import { hashPin } from './auth.js';
+import { listProviderModels } from './ai/extract.js';
 import { createServerContext } from './context.js';
 
 const env = process.env;
@@ -42,7 +43,12 @@ function aiConfig() {
     console.warn(`[sesame] IA : règles locales (manquant : ${[!baseUrl && 'SESAME_AI_BASE_URL', !model && 'SESAME_AI_MODEL', !(apiKey || local) && 'SESAME_AI_API_KEY'].filter(Boolean).join(', ') || 'aucun'})`);
     return {};
   }
-  console.log(`[sesame] IA : ${model} via ${new URL(baseUrl).host}`);
+  console.log(`[sesame] IA : ${model.split(',').map((m) => m.trim()).join(' → repli ')} via ${new URL(baseUrl).host}`);
+  // Diagnostic : modèles « flash » disponibles pour cette clé (noms seulement, jamais la clé).
+  void listProviderModels({ baseUrl, apiKey }).then((ids) => {
+    const flash = ids.filter((id) => /flash/i.test(id)).slice(0, 20);
+    if (flash.length) console.log(`[sesame] IA : modèles disponibles : ${flash.join(', ')}`);
+  }).catch(() => undefined);
   return { baseUrl, apiKey, model, onError: (reason: string) => console.warn('[sesame] IA indisponible, règles locales utilisées :', reason) };
 }
 
