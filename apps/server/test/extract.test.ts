@@ -212,3 +212,23 @@ describe('extractOrder : temps d’attente limité', () => {
     expect(Date.now() - t0).toBeLessThan(3_000);
   });
 });
+
+describe('extractOrder : Gemini en mode rapide', () => {
+  it('désactive la réflexion longue pour Gemini, et passe au modèle suivant après un délai dépassé', async () => {
+    const asked: Array<{ model: string; reasoning?: string }> = [];
+    const r = await extractOrder('la robe à 35 mille', {
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'lent,rapide', apiKey: 'k', retryDelayMs: 0, timeoutMs: 200,
+      fetchImpl: (_u, init) => {
+        const b = JSON.parse(String(init?.body));
+        asked.push({ model: b.model, reasoning: b.reasoning_effort });
+        if (b.model === 'lent') {
+          return new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(Object.assign(new Error('timeout'), { name: 'TimeoutError' }))));
+        }
+        return Promise.resolve(Response.json({ choices: [{ message: { content: '{"itemLabel":"Robe","amountXof":35000,"deliveryFeeXof":null}' } }] }));
+      },
+    });
+    expect(r.source).toBe('llm');
+    expect(asked.map((a) => a.model)).toEqual(['lent', 'rapide']);
+    expect(asked[0]!.reasoning).toBe('none');
+  });
+});

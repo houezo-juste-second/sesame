@@ -212,6 +212,8 @@ const SYSTEM_PROMPT = [
 type LlmMessage = { role: 'system' | 'user'; content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> };
 
 async function callLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string; model: string }, jsonMode: boolean): Promise<Response> {
+  // Extraire une commande ne demande pas de « réflexion » : on la désactive (réponse bien plus rapide).
+  const fast = jsonMode && /generativelanguage\.googleapis\.com/.test(cfg.baseUrl);
   const doFetch = cfg.fetchImpl ?? ((u: string, i?: RequestInit) => fetch(u, i));
   return doFetch(`${cfg.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -223,6 +225,7 @@ async function callLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: strin
       model: cfg.model,
       temperature: 0,
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
+      ...(fast ? { reasoning_effort: 'none' } : {}),
       messages,
     }),
     signal: AbortSignal.timeout(cfg.timeoutMs ?? 12_000),
@@ -259,7 +262,7 @@ async function askLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string
   const models = cfg.model.split(',').map((m) => m.trim()).filter(Boolean);
   const reasons: string[] = [];
   // La vendeuse n'attend jamais plus de ~15 s : au-delà, les règles locales prennent le relais.
-  const deadline = Date.now() + (cfg.budgetMs ?? 15_000);
+  const deadline = Date.now() + (cfg.budgetMs ?? 18_000);
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const left = deadline - Date.now();
@@ -268,12 +271,12 @@ async function askLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string
         break;
       }
       try {
-        return await askOneModel(messages, { ...cfg, model, timeoutMs: Math.min(cfg.timeoutMs ?? 7_000, left) });
+        return await askOneModel(messages, { ...cfg, model, timeoutMs: Math.min(cfg.timeoutMs ?? 8_000, left) });
       } catch (e) {
         const reason = e instanceof Error ? e.message : String(e);
         const status = Number(/^LLM_HTTP_(\d+)/.exec(reason)?.[1] ?? 0);
         const timeout = /TimeoutError|aborted/i.test(reason) || (e instanceof Error && e.name === 'TimeoutError');
-        if (attempt === 0 && (TRANSIENT.has(status) || timeout)) {
+        if (attempt === 0 && TRANSIENT.has(status) && !timeout) {
           await sleep(cfg.retryDelayMs ?? 800);
           continue;
         }
