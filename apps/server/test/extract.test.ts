@@ -189,3 +189,26 @@ describe('extractOrder : surcharge du fournisseur et modèles de repli', () => {
     expect(reasons[0]).toMatch(/a → LLM_HTTP_503.*\| b → LLM_HTTP_503/);
   });
 });
+
+describe('règles locales : conversations collées avec « / »', () => {
+  it('article dans une question, prix seul, livraison donnée en réponse à « vous livrez ? »', () => {
+    const r = extractOrderHeuristic("Bonsoir madame, la robe en bazin brodé rouge elle est à combien ? / 35 mille / D'accord je la prends, vous livrez à Calavi ? / Oui 2000 pour Calavi, vous l'aurez demain avant midi");
+    expect(r).toMatchObject({ itemLabel: 'robe en bazin brodé rouge', amountXof: 35_000, deliveryFeeXof: 2_000 });
+  });
+  it('« 100ml » n’est pas un prix ; « dispo le … ? » donne l’article', () => {
+    const r = extractOrderHeuristic("Bjr, dispo le parfum Dior Sauvage 100ml ? / Oui 45 000 / Ok livrez moi à Ouakam ce soir stp / La livraison c'est 1500");
+    expect(r).toMatchObject({ itemLabel: 'parfum Dior Sauvage 100ml', amountXof: 45_000, deliveryFeeXof: 1_500 });
+  });
+});
+
+describe('extractOrder : temps d’attente limité', () => {
+  it('la vendeuse n’attend pas au-delà du budget : règles locales ensuite', async () => {
+    const t0 = Date.now();
+    const r = await extractOrder('je prends le sac à 9000', {
+      baseUrl: 'https://llm.example/v1', model: 'a,b,c', apiKey: 'k', retryDelayMs: 0, budgetMs: 1_200,
+      fetchImpl: () => new Promise<Response>(() => {}),
+    });
+    expect(r.source).toBe('heuristic');
+    expect(Date.now() - t0).toBeLessThan(3_000);
+  });
+});

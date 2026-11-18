@@ -29,6 +29,8 @@ export interface LlmConfig {
   fetchImpl?: ((url: string, init?: RequestInit) => Promise<Response>) | undefined;
   /** Pause avant un nouvel essai quand le fournisseur est surchargé (tests : 0). */
   retryDelayMs?: number | undefined;
+  /** Temps total accordé au LLM (tous modèles et essais confondus), en ms. */
+  budgetMs?: number | undefined;
   /** Appelé quand le LLM échoue (raison sans aucune clé ni texte de conversation), pour les journaux. */
   onError?: ((reason: string) => void) | undefined;
 }
@@ -53,6 +55,8 @@ interface AmountHit {
   clause: string;
   before: string;
   after: string;
+  /** Phrase précédente (ex. « vous livrez à Calavi ? » avant « Oui 2000 »). */
+  previous: string;
 }
 
 const AMOUNT = /(\d{1,3}(?:[ .  ]\d{3})+|\d+)(\s*(?:k|mille)\b)?\s*(fcfa|cfa|francs?|xof|f\b)?/gi;
@@ -63,7 +67,8 @@ const UNIT_CUE = /^\s*(?:fcfa|cfa|f)?\s*(?:l['’]\s?unit[ée]|chacune?|la\s+pi[
 
 function sentences(text: string): Array<{ start: number; text: string }> {
   const out: Array<{ start: number; text: string }> = [];
-  const re = /[^.!?\n]+(?:[.!?](?=\S)[^.!?\n]*)*[.!?\n]?/g;
+  // « / » (messages collés à la suite) et retours à la ligne séparent aussi les phrases.
+  const re = /[^.!?\n/]+(?:[.!?](?=\S)[^.!?\n/]*)*[.!?\n/]?/g;
   for (const m of text.matchAll(re)) out.push({ start: m.index, text: m[0] });
   return out;
 }
@@ -79,7 +84,12 @@ function findAmounts(text: string): AmountHit[] {
     if (thousands) value *= 1_000;
     if (!Number.isSafeInteger(value) || value <= 0) continue;
     if (value < 100 && !thousands && !currency) continue; // « 2 pagnes », « 6 yards », « 3h »
-    const s = sents.find((x) => m.index >= x.start && m.index < x.start + x.text.length) ?? { start: 0, text };
+    // Quantités avec unité (100ml, 2 kg, 64 Go…) : jamais des prix.
+    if (!currency && !thousands && /^\s*(?:ml|cl|l|g|gr|kg|cm|mm|m|yards?|m[eè]tres?|pouces?|go|gb|mo|mah|w|v|ans?|mois|pi[eè]ces?|paires?)(?![\p{L}'’])/iu.test(text.slice(m.index + m[0].length))) continue;
+    const si = sents.findIndex((x) => m.index >= x.start && m.index < x.start + x.text.length);
+    const s = sents[si] ?? { start: 0, text };
+    // Phrase précédente qui contient des mots (on saute les séparateurs « / » isolés).
+    const previous = sents.slice(0, Math.max(0, si)).reverse().find((x) => /\p{L}/u.test(x.text))?.text ?? '';
     const local = m.index - s.start;
     const clauseStart = s.text.lastIndexOf(',', local) + 1;
     const nextComma = s.text.indexOf(',', local);
@@ -87,6 +97,7 @@ function findAmounts(text: string): AmountHit[] {
     hits.push({
       value, index: m.index, sentence: s.text, clause, before: s.text.slice(Math.max(0, local - 12), local),
       after: text.slice(m.index + m[0].length, m.index + m[0].length + 24),
+      previous,
     });
   }
   return hits;
@@ -94,7 +105,8 @@ function findAmounts(text: string): AmountHit[] {
 
 function isDeliveryAmount(h: AmountHit, all: AmountHit[]): boolean {
   if (DELIVERY_WORD.test(h.clause)) return true;
-  if (!DELIVERY_WORD.test(h.sentence)) return false;
+  // Réponse à une question de livraison : « vous livrez à Calavi ? » → « Oui 2000 pour Calavi ».
+  if (!DELIVERY_WORD.test(h.sentence)) return h.previous.includes('?') && DELIVERY_WORD.test(h.previous) && !UNIT_CUE.test(h.after);
   // Deux montants dans la même phrase : seul celui à côté du mot « livraison » est la livraison.
   if (all.some((o) => o !== h && o.sentence === h.sentence && DELIVERY_WORD.test(o.clause))) return false;
   if (UNIT_CUE.test(h.after)) return false;
@@ -103,6 +115,12 @@ function isDeliveryAmount(h: AmountHit, all: AmountHit[]): boolean {
 }
 
 function extractItemLabel(text: string): string | null {
+  // « la robe en bazin brodé rouge elle est à combien ? », « dispo le parfum Dior Sauvage 100ml ? »
+  const asked = /\b(?:(?:le|la|les|l['’])\s*([^?/\n]{3,80}?)\s+(?:elle|il|elles|ils)\s+(?:est|sont|co[uû]te(?:nt)?)\b|dispo(?:nible)?s?\s+(?:le|la|les|l['’])?\s*([^?/\n]{3,80}?)\s*\?)/i.exec(text);
+  if (asked) {
+    const label = (asked[1] ?? asked[2] ?? '').trim();
+    if (label && !/^\d/.test(label) && !/\b(je|prends|veux|commande)\b/i.test(label)) return label.slice(0, 120);
+  }
   const m = /\b(?:je\s+prends|je\s+veux|je\s+voudrais|je\s+commande|donne[-\s]moi|envoie[-\s]moi)\s+(.+?)(?=\s+(?:à|a|pour)\s+\d|\s+combien|[,.!?/\n]|$)/i.exec(text);
   if (!m) return null;
   const label = m[1]!.replace(/^(?:les|le|la|l['’]|un|une|des|du|ce|cette|ces)\s*/i, '').trim();
@@ -240,10 +258,17 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function askLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string; model: string }) {
   const models = cfg.model.split(',').map((m) => m.trim()).filter(Boolean);
   const reasons: string[] = [];
+  // La vendeuse n'attend jamais plus de ~15 s : au-delà, les règles locales prennent le relais.
+  const deadline = Date.now() + (cfg.budgetMs ?? 15_000);
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
+      const left = deadline - Date.now();
+      if (left < 1_500) {
+        reasons.push(`${model} → LLM_BUDGET`);
+        break;
+      }
       try {
-        return await askOneModel(messages, { ...cfg, model });
+        return await askOneModel(messages, { ...cfg, model, timeoutMs: Math.min(cfg.timeoutMs ?? 7_000, left) });
       } catch (e) {
         const reason = e instanceof Error ? e.message : String(e);
         const status = Number(/^LLM_HTTP_(\d+)/.exec(reason)?.[1] ?? 0);
