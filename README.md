@@ -10,6 +10,8 @@ Underneath, the lock is a **Bitcoin Lightning hold invoice**: during delivery, n
 
 > Submitted to the **Dakar Bitcoin Hack 2026 by Btrust**.
 > **Live demo:** https://sesame-1j54.onrender.com (tap "Essayer les 3 rôles en 2 minutes": all three roles, no account). Free hosting: the first load can take about a minute.
+>
+> **Real Lightning demo:** https://sesame-1j54.onrender.com/demo/real creates three real Lightning test wallets (seller, buyer, courier). The seller's own wallet issues a real hold invoice, the buyer pays it, the money stays locked, and the sésame releases it: the page shows the real balances moving (test sats, no value).
 > **Demo video (3 min):** see the Devpost page.
 > The app is **bilingual (English / French)**: it follows the browser language, with an EN/FR switch on every screen. French is the default for our users in Senegal and Benin.
 

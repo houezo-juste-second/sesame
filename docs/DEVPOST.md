@@ -13,6 +13,7 @@ Cash on delivery without the cash: buyers pay first, the money stays locked in a
 ## Links ("Try it out")
 
 - Live demo: https://sesame-1j54.onrender.com
+- Real Lightning demo (three real test wallets, one click): https://sesame-1j54.onrender.com/demo/real
 - Source code: https://github.com/houezo-juste-second/sesame
 
 ## Video demo link

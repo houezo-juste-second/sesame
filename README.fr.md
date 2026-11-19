@@ -8,6 +8,8 @@ En arrière-plan, le blocage est garanti par une **facture hold du réseau Bitco
 
 > Projet soumis au **Dakar Bitcoin Hack 2026 by BTrust**.
 > **Démo en ligne :** https://sesame-1j54.onrender.com (bouton « Essayer les 3 rôles en 2 minutes », sans compte). Hébergement gratuit : le premier chargement peut prendre une minute.
+>
+> **Démo Lightning réelle :** https://sesame-1j54.onrender.com/demo/real crée trois vrais wallets Lightning de test (vendeuse, cliente, livreur). Le wallet de la vendeuse émet une vraie facture hold, la cliente la paie, l'argent reste bloqué, puis le sésame le libère : la page affiche les vrais soldes (sats de test, sans valeur).
 
 ## Qui fait quoi
 
