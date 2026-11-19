@@ -328,4 +328,12 @@ export const EN: Record<string, string> = {
   "Par défaut, le livreur reçoit tous les frais de livraison. Pour offrir la livraison, mettez 0 en livraison et indiquez ici ce que vous payez au livreur.": "By default, the courier gets the whole delivery fee. To offer free delivery, set delivery to 0 and enter here what you pay the courier.",
   "Livraison offerte : vous payez {gift} de la course sur votre part.": "Free delivery: you pay {gift} of the courier's fee from your share.",
   "La part du livreur dépasse ce qui vous revient.": "The courier's share is more than what you receive.",
+  "Trois vrais wallets Lightning de test sont créés pour vous (vendeuse, cliente, livreur). Cela prend une dizaine de secondes.": "Three real Lightning test wallets are being created for you (seller, buyer, courier). This takes about ten seconds.",
+  "La cliente paie avec son wallet Lightning de test : touchez « Payer avec le wallet de test de la cliente ». C’est un vrai paiement Lightning, avec des sats de test.": "The buyer pays from her Lightning test wallet: tap “Pay with the buyer’s test wallet”. It is a real Lightning payment, with test sats.",
+  "Le sésame a libéré l’argent : la vendeuse et le livreur ont reçu de vrais sats dans leurs propres wallets.": "The sésame released the money: the seller and the courier received real sats in their own wallets.",
+  "vrais paiements Lightning, sats de test": "real Lightning payments, test sats",
+  "Soldes réels des wallets de test : vendeuse {s} sats · cliente {b} sats · livreur {c} sats": "Real test-wallet balances: seller {s} sats · buyer {b} sats · courier {c} sats",
+  "Démo avec de vrais paiements Lightning": "Demo with real Lightning payments",
+  "Trois vrais wallets de test (sats sans valeur) : argent réellement bloqué puis libéré": "Three real test wallets (worthless sats): money really locked, then released",
+  "Payer avec le wallet de test de la cliente": "Pay with the buyer’s test wallet",
 };

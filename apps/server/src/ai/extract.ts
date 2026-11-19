@@ -213,7 +213,10 @@ type LlmMessage = { role: 'system' | 'user'; content: string | Array<{ type: 'te
 
 async function callLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: string; model: string }, jsonMode: boolean): Promise<Response> {
   // Extraire une commande ne demande pas de « réflexion » : on la désactive (réponse bien plus rapide).
-  const fast = jsonMode && /generativelanguage\.googleapis\.com/.test(cfg.baseUrl);
+  // Gemini : « none » ; modèles gpt-oss (Groq…) : « low » (ils n'acceptent pas « none »).
+  const effort = !jsonMode ? null
+    : /generativelanguage\.googleapis\.com/.test(cfg.baseUrl) ? 'none'
+    : /gpt-oss/i.test(cfg.model) ? 'low' : null;
   const doFetch = cfg.fetchImpl ?? ((u: string, i?: RequestInit) => fetch(u, i));
   return doFetch(`${cfg.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -225,7 +228,7 @@ async function callLlm(messages: LlmMessage[], cfg: LlmConfig & { baseUrl: strin
       model: cfg.model,
       temperature: 0,
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
-      ...(fast ? { reasoning_effort: 'none' } : {}),
+      ...(effort ? { reasoning_effort: effort } : {}),
       messages,
     }),
     signal: AbortSignal.timeout(cfg.timeoutMs ?? 12_000),

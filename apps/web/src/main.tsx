@@ -38,6 +38,7 @@ function App() {
 
 function route(path: string) {
   let m: Record<string, string> | null;
+  if (match('/demo/real', path)) return <DemoStart real />;
   if (match('/demo', path)) return <DemoStart />;
   if (match('/admin', path)) return <LazyAdmin />;
   if ((m = match('/c/:id', path))) return <ClientOrder key={m.id} id={m.id!} />;

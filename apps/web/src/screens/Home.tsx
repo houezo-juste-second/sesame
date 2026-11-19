@@ -1,6 +1,6 @@
 import { navigate } from '../router.js';
 import { t } from '../i18n.js';
-import { Bag, Bike, Lock, Play, Seed, Store } from '../ui/icons.js';
+import { Bag, Bike, Bolt, Lock, Play, Seed, Store } from '../ui/icons.js';
 import { Brand, LangToggle } from '../ui/kit.js';
 
 const go = (path: string) => (e: Event) => { e.preventDefault(); navigate(path); };
@@ -94,6 +94,8 @@ export function Home() {
       <footer class="bottom">
         <a class="btn saffron" href="/demo" onClick={go('/demo')}><Play /> {t('Essayer les 3 rôles en 2 minutes')}</a>
         <div class="tiny muted center">{t('Démonstration sans compte et sans argent réel, sur ce téléphone')}</div>
+        <a class="btn ghost" href="/demo/real" onClick={go('/demo/real')}><Bolt /> {t('Démo avec de vrais paiements Lightning')}</a>
+        <div class="tiny muted center">{t('Trois vrais wallets de test (sats sans valeur) : argent réellement bloqué puis libéré')}</div>
       </footer>
     </div>
   );

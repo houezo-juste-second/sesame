@@ -8,6 +8,7 @@ import { api, ApiError, clock, initials, linkToken, local, MOMO_OPERATORS, sats,
 import { Check, Clock, Eye, Key, Lock, Phone, Shield } from '../ui/icons.js';
 import { Brand, copyText, ErrorBox, LangToggle, Loading, Qr, SimBanner, Toast, TopBar, useNow, useToast } from '../ui/kit.js';
 import { errorText, stateLabel, t } from '../i18n.js';
+import { isRealDemo } from '../demo.js';
 
 const pKey = (id: string) => `sesame:p:${id}`;
 
@@ -238,6 +239,9 @@ function LightningPay({ order, busy, onDemoPay, onCopy }: { order: OrderView; bu
       <button class="btn ghost" onClick={onCopy}>{t('Copier la facture')}</button>
       {order.simulation && (
         <button class="btn saffron" disabled={busy} onClick={onDemoPay}>{t('Payer avec le wallet de démo')}</button>
+      )}
+      {!order.simulation && isRealDemo(order.id) && (
+        <button class="btn saffron" disabled={busy} onClick={onDemoPay}>{t('Payer avec le wallet de test de la cliente')}</button>
       )}
       <div class="tiny muted center">{t('Après le paiement, cette page se met à jour toute seule.')}</div>
     </>

@@ -34,6 +34,20 @@ function adminCode(): string | undefined {
  * IA : LLM seulement avec une clé (ou un serveur local type Ollama) ; sinon règles locales.
  * Les valeurs sont nettoyées des espaces et retours à la ligne collés par erreur.
  */
+/**
+ * Captures d'écran : modèle(s) qui voient les images, éventuellement chez un autre fournisseur.
+ * SESAME_AI_VISION_MODEL (+ SESAME_AI_VISION_BASE_URL / SESAME_AI_VISION_API_KEY, sinon ceux du texte).
+ */
+function visionConfig() {
+  const model = env.SESAME_AI_VISION_MODEL?.trim();
+  if (!model) return undefined;
+  const baseUrl = env.SESAME_AI_VISION_BASE_URL?.trim() || env.SESAME_AI_BASE_URL?.trim();
+  const apiKey = env.SESAME_AI_VISION_API_KEY?.trim() || env.SESAME_AI_API_KEY?.trim();
+  if (!baseUrl || !apiKey) return undefined;
+  console.log(`[sesame] IA captures : ${model.split(',').map((m) => m.trim()).join(' → repli ')} via ${new URL(baseUrl).host}`);
+  return { baseUrl, apiKey, model, onError: (reason: string) => console.warn('[sesame] IA captures indisponible :', reason) };
+}
+
 function aiConfig() {
   const baseUrl = env.SESAME_AI_BASE_URL?.trim() || undefined;
   const apiKey = env.SESAME_AI_API_KEY?.trim() || undefined;
@@ -46,7 +60,7 @@ function aiConfig() {
   console.log(`[sesame] IA : ${model.split(',').map((m) => m.trim()).join(' → repli ')} via ${new URL(baseUrl).host}`);
   // Diagnostic : modèles « flash » disponibles pour cette clé (noms seulement, jamais la clé).
   void listProviderModels({ baseUrl, apiKey }).then((ids) => {
-    const flash = ids.filter((id) => /flash|lite|llama|scout|vision/i.test(id) && !/tts|image|embed/i.test(id)).slice(0, 25);
+    const flash = ids.filter((id) => /flash|lite|llama|scout|vision|gpt-oss|qwen|kimi/i.test(id) && !/tts|image-|embed|whisper|guard/i.test(id)).slice(0, 25);
     if (flash.length) console.log(`[sesame] IA : modèles disponibles : ${flash.join(', ')}`);
   }).catch(() => undefined);
   return { baseUrl, apiKey, model, onError: (reason: string) => console.warn('[sesame] IA indisponible, règles locales utilisées :', reason) };
@@ -61,6 +75,7 @@ const ctx = createServerContext({
   onError: (e) => console.error('[sesame] reçu Nostr non émis :', e instanceof Error ? e.message : e),
   fixedXofPerBtc: env.SESAME_FIXED_RATE ? Number(env.SESAME_FIXED_RATE) : undefined,
   llm: aiConfig(),
+  llmVision: visionConfig(),
 });
 const app = buildApp(ctx, { logger: true });
 

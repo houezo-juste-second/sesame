@@ -28,6 +28,8 @@ export interface ServerConfig {
   /** Taux fixe (tests, démo hors ligne). Absent : taux réel via mempool.space. */
   fixedXofPerBtc?: number | undefined;
   llm?: LlmConfig | undefined;
+  /** Modèle(s) qui lisent les captures d'écran (sinon : llm). */
+  llmVision?: LlmConfig | undefined;
   /** Relais Nostr où publier les reçus ; vide : reçus signés et stockés, non publiés. */
   nostrRelays?: string[] | undefined;
   /** Remplace le publieur (tests). */

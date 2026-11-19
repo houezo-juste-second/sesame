@@ -14,6 +14,7 @@ import { EscrowError, type EngineEvent, type EscrowErrorCode } from './escrow/en
 import type { Order } from './escrow/types.js';
 import type { ServerContext } from './context.js';
 import { NwcError } from './wallet/nwc.js';
+import { demoBalances, DemoWalletStore, payFromBuyer } from './demo-real.js';
 import { MOMO_OPERATORS, payoutDestination, payoutLabel, type Shop, type ShopPayout } from './shops.js';
 
 class HttpError extends Error {
@@ -134,6 +135,8 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   const demoLimiter = new Limiter(30, 60_000);
   const walletLimiter = new Limiter(5, 60_000);
   const imageLimiter = new Limiter(10, 60_000);
+  const demoRealLimiter = new Limiter(4, 60_000);
+  const demoWallets = new DemoWalletStore();
   const admin = new AdminSessions(ctx.config.adminCode);
 
   // ---------------------------------------------------------------- utilitaires
@@ -442,6 +445,12 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   app.post('/api/demo/pay/:id', async (req) => {
     if (ctx.config.mode !== 'simulation' || !ctx.simWallet) throw new HttpError(404, 'NOT_FOUND', 'Indisponible.');
     const { grant, order, shop } = await orderFor(req, ['client']);
+    const real = demoWallets.get(order.id);
+    if (real && order.walletKind === 'nwc' && order.state === 'AWAITING_PAYMENT' && order.bolt11) {
+      // Vrai paiement Lightning depuis le wallet de test de la cliente : l'état change quand le wallet de la vendeuse le confirme.
+      payFromBuyer(real, order.bolt11, (e) => req.log.warn({ err: e instanceof Error ? e.message : String(e) }, 'demo real pay'));
+      return view(order, shop, grant.role);
+    }
     if (order.walletKind === 'nwc') throw new HttpError(409, 'REAL_WALLET', REAL_WALLET_MSG);
     if (order.state !== 'AWAITING_PAYMENT' || !order.paymentHash) throw new EscrowError('ORDER_NOT_LOCKABLE');
     await ctx.store.save({ ...order, payment: { method: 'lightning' } });
@@ -472,9 +481,10 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
    * « Essayer la démo » : une boutique de démonstration jetable et une commande prête.
    * Chaque visiteur a sa propre boutique : personne ne peut toucher aux commandes d'un autre.
    */
-  app.post('/api/demo/start', async (_req, reply) => {
+  app.post('/api/demo/start', async (req, reply) => {
     if (ctx.config.mode !== 'simulation') throw new HttpError(404, 'NOT_FOUND', 'Indisponible.');
     if (!demoLimiter.take('demo')) throw new HttpError(429, 'RATE_LIMITED', 'Beaucoup de démos en cours. Réessayez dans une minute.');
+    if ((req.body as { real?: unknown } | undefined)?.real === true) return startRealDemo(reply);
     const shop = ctx.shops.create({
       name: 'Pagnes de Fifamè (démo)', city: 'Cotonou', demo: true,
       pinHash: await hashPin(String(randomInt(100_000, 1_000_000))), // PIN aléatoire jamais communiqué
@@ -491,6 +501,46 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       sellerToken: ctx.tokens.issue({ role: 'seller', shopId: shop.id }),
       clientToken: ctx.tokens.issue({ role: 'client', shopId: shop.id, orderId: order.id }),
     });
+  });
+
+  /**
+   * Démo avec de VRAIS wallets Lightning de test (faucet NWC d'Alby) : la facture hold vient du wallet
+   * de la vendeuse, la cliente paie depuis le sien, le livreur est payé sur son adresse Lightning.
+   */
+  async function startRealDemo(reply: FastifyReply) {
+    if (!demoRealLimiter.take('demo-real')) throw new HttpError(429, 'RATE_LIMITED', 'Beaucoup de démos en cours. Réessayez dans une minute.');
+    let wallets;
+    try {
+      wallets = await demoWallets.create();
+    } catch (e) {
+      console.warn('[sesame] démo réelle : faucet indisponible :', e instanceof Error ? e.message : e);
+      throw new HttpError(503, 'DEMO_WALLETS_UNAVAILABLE', 'Les wallets de test sont indisponibles pour le moment. Essayez la démo simulée.');
+    }
+    const shop = ctx.shops.create({
+      name: 'Pagnes de Fifamè (démo réelle)', city: 'Cotonou', demo: true,
+      pinHash: await hashPin(String(randomInt(100_000, 1_000_000))),
+    });
+    await ctx.wallets.connect(shop.id, wallets.seller);
+    const order = await ctx.engine.createOrder({
+      shopId: shop.id, itemLabel: '1 pagne wax bleu', itemXof: 1_000, deliveryFeeXof: 200, deliveryHours: 2,
+      xofPerBtc: await ctx.rate.xofPerBtc(), walletKind: 'nwc',
+    });
+    demoWallets.set(order.id, wallets);
+    return reply.status(201).send({
+      slug: shop.slug,
+      orderId: order.id,
+      real: true,
+      courierAddress: wallets.courierAddress,
+      sellerToken: ctx.tokens.issue({ role: 'seller', shopId: shop.id }),
+      clientToken: ctx.tokens.issue({ role: 'client', shopId: shop.id, orderId: order.id }),
+    });
+  }
+
+  app.get('/api/demo/balances/:id', async (req) => {
+    const { order } = await orderFor(req, ['seller', 'client', 'courier']);
+    const w = demoWallets.get(order.id);
+    if (!w) throw new HttpError(404, 'NOT_FOUND', 'Introuvable.');
+    return demoBalances(w);
   });
 
   // ---------------------------------------------------------------- administration
@@ -539,7 +589,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     if (!imageLimiter.take(shop.id)) throw new HttpError(429, 'RATE_LIMITED', "Trop d'essais. Réessayez dans une minute.");
     const { image } = ImageInput.parse(req.body);
     try {
-      return await extractOrderFromImage(image, ctx.config.llm ?? {});
+      return await extractOrderFromImage(image, ctx.config.llmVision ?? ctx.config.llm ?? {});
     } catch (e) {
       if (e instanceof AiUnavailableError) {
         throw new HttpError(503, 'AI_UNAVAILABLE', "Lecture de la capture indisponible pour le moment. Copiez plutôt le texte de la conversation.");

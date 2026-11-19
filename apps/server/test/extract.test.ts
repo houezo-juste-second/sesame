@@ -249,3 +249,16 @@ describe('extractOrder : quota épuisé', () => {
     expect(asked).toEqual(['sans-quota', 'lite']);
   });
 });
+
+describe('extractOrder : réglage de réflexion selon le modèle', () => {
+  it('gpt-oss (Groq) : reasoning_effort « low » ; autre modèle hors Gemini : aucun réglage', async () => {
+    const seen: Array<string | undefined> = [];
+    const fetchImpl = async (_u: string, init?: RequestInit) => {
+      seen.push(JSON.parse(String(init?.body)).reasoning_effort);
+      return Response.json({ choices: [{ message: { content: '{"itemLabel":"Robe","amountXof":35000,"deliveryFeeXof":null}' } }] });
+    };
+    await extractOrder('la robe à 35 mille', { baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', apiKey: 'k', fetchImpl });
+    await extractOrder('la robe à 35 mille', { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', apiKey: 'k', fetchImpl });
+    expect(seen).toEqual(['low', undefined]);
+  });
+});
