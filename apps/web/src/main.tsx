@@ -3,6 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import '@fontsource-variable/bricolage-grotesque/opsz.css';
 import '@fontsource-variable/atkinson-hyperlegible-next/wght.css';
 import './styles.css';
+import './ui/install.js';
 import { match, usePath } from './router.js';
 import { Home } from './screens/Home.js';
 import { ClientOrder } from './screens/ClientOrder.js';

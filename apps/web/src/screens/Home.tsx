@@ -2,6 +2,7 @@ import { navigate } from '../router.js';
 import { t } from '../i18n.js';
 import { Bag, Bike, Bolt, Camera, Lock, Seed, Sparkle, Store } from '../ui/icons.js';
 import { Brand, LangToggle } from '../ui/kit.js';
+import { InstallApp } from '../ui/install.js';
 
 const go = (path: string) => (e: Event) => { e.preventDefault(); navigate(path); };
 
@@ -25,7 +26,8 @@ export function Home() {
           <p class="lede">{t('Le paiement à la livraison sans cash et sans fausse capture, pour les ventes sur WhatsApp, Instagram et TikTok. Le client paie en Mobile Money, vous êtes payée en Mobile Money.')}</p>
           <div class="hero-actions">
             <a class="btn primary" href="/v" onClick={go('/v')}><Store size={18} /> {t('Ouvrir mon espace vendeuse')}</a>
-            <span class="tiny muted">{t('Gratuit, sans application à installer. Vos clients et livreurs n’ont pas besoin de compte.')}</span>
+            <InstallApp variant="button" />
+            <span class="tiny muted">{t('Gratuit. Vos clients et livreurs n’ont rien à installer ni de compte à créer.')}</span>
           </div>
         </section>
 

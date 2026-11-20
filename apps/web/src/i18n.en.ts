@@ -350,4 +350,8 @@ export const EN: Record<string, string> = {
   "Essayer avec de vrais paiements Lightning": "Try it with real Lightning payments",
   "Les 3 rôles sur ce téléphone, sans compte. Trois vrais wallets de test (sats sans valeur) : l’argent est réellement bloqué, puis libéré.": "All 3 roles on this phone, no account. Three real test wallets (worthless sats): the money is really locked, then released.",
   "Essayer la démo simulée": "Try the simulated demo",
+  "Installer Sésame sur mon téléphone": "Install Sésame on my phone",
+  "Sur iPhone, dans Safari : touchez le bouton Partager (le carré avec une flèche), puis « Sur l’écran d’accueil ».": "On iPhone, in Safari: tap the Share button (the square with an arrow), then “Add to Home Screen”.",
+  "Comme une application : une icône sur l’écran d’accueil, ouverture en plein écran": "Like an app: an icon on your home screen, opens full screen",
+  "Gratuit. Vos clients et livreurs n’ont rien à installer ni de compte à créer.": "Free. Your buyers and couriers have nothing to install and no account to create.",
 };

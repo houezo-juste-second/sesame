@@ -350,3 +350,8 @@ body.demo-on .screen .lang-toggle { display: none; }
 .ai-out dt { color: var(--muted); }
 .ai-out dd { margin: 0; font-weight: 700; text-align: right; }
 @media (max-width: 360px) { .ai-demo { grid-template-columns: 1fr; } .ai-arrow { justify-self: center; transform: rotate(90deg); } }
+
+/* Installation de l'application */
+.install-btn { min-height: 46px; }
+button.link-row.install-row { width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.install-help { background: var(--indigo-soft); color: var(--indigo-ink); border-radius: var(--r-m); padding: 10px 12px; line-height: 1.45; }

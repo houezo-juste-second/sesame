@@ -79,3 +79,6 @@ export const Bike = ({ size = 18, color = 'currentColor' }: P) => (
 export const Play = ({ size = 18, color = 'currentColor' }: P) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill={color} /></svg>
 );
+export const Download = ({ size = 18, color = 'currentColor' }: P) => (
+  <svg {...base(size, color)} stroke-width={2}><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+);

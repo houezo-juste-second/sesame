@@ -4,6 +4,7 @@ import { serviceFeeXof } from '@sesame/core';
 import { api, ApiError, initials, local, MOMO_OPERATORS, SELLER_KEY, subscribe, xof, type OrderView } from '../api.js';
 import { navigate } from '../router.js';
 import { Bolt, Camera, Chevron, Logout, Phone, Plus, Shield, Sparkle, WhatsApp } from '../ui/icons.js';
+import { InstallApp } from '../ui/install.js';
 import { imageFromClipboard, shrinkImage } from '../ui/image.js';
 import type { Scanner as ScannerType } from '../ui/Scanner.js';
 import { copyText, ErrorBox, LangToggle, Loading, SimBanner, Toast, TopBar, useToast, whatsappUrl } from '../ui/kit.js';
@@ -155,6 +156,8 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
           {data.shop.walletConnected && <span class="status RELEASED">{t('Branché')}</span>}
           <span class="chev"><Chevron /></span>
         </a>
+
+        <InstallApp variant="row" />
 
         <a class="link-row" href="/v/payout" onClick={(e) => { e.preventDefault(); navigate('/v/payout'); }}>
           <span class="link-icon"><Phone size={18} color="var(--indigo)" /></span>
