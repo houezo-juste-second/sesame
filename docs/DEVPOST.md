@@ -13,7 +13,6 @@ Cash on delivery without the cash: the buyer pays first, the money stays locked 
 ## Links ("Try it out")
 
 - Live demo: https://sesame-1j54.onrender.com
-- Real Lightning demo (three real test wallets, one click): https://sesame-1j54.onrender.com/demo/real
 - Source code: https://github.com/houezo-juste-second/sesame
 
 ## Video demo link
@@ -27,7 +26,7 @@ https://youtu.be/0LJA9di9rKQ (live demo on the real app, 2 min 44)
 ## About the project (Markdown)
 
 ```markdown
-> ⚡ **Try a real Lightning payment in one click: https://sesame-1j54.onrender.com/demo/real**
+> ⚡ **Try a real Lightning payment in one click: https://sesame-1j54.onrender.com** (tap **“Try it with real Lightning payments”**)
 > Three real Lightning test wallets are created for you (seller, buyer, rider). The seller's own wallet issues a hold invoice, the buyer pays, the money stays locked, and the buyer's sésame releases it. You watch the real balances move. No regtest, no mock.
 
 ## Inspiration
