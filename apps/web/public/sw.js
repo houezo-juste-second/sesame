@@ -1,9 +1,10 @@
 // Service worker minimal : l'application se charge même avec un réseau instable.
 // Stratégie : réseau d'abord pour l'API (jamais mise en cache), cache d'abord pour les fichiers statiques.
-const CACHE = 'sesame-v1';
+// Changer ce nom force les navigateurs à oublier l'ancien cache (ex. ancien logo).
+const CACHE = 'sesame-v2';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/index.html', '/icon.svg'])));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/index.html'])));
   self.skipWaiting();
 });
 
@@ -17,6 +18,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api')) return;
+  // Icônes et manifeste : réseau d'abord, pour qu'un nouveau logo s'affiche tout de suite.
+  if (/\.(ico|png|svg|webmanifest)$/.test(url.pathname)) {
+    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+    return;
+  }
   if (event.request.mode === 'navigate') {
     event.respondWith(fetch(event.request).catch(() => caches.match('/index.html')));
     return;

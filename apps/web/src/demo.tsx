@@ -69,6 +69,7 @@ export function DemoStart({ real = false }: { real?: boolean }) {
         {error ? (
           <>
             <ErrorBox message={error} />
+            {real && <button class="btn saffron" onClick={() => navigate('/demo')}>{t('Essayer la démo simulée')}</button>}
             <button class="btn ghost" onClick={() => navigate('/')}>{t("Retour à l'accueil")}</button>
           </>
         ) : (

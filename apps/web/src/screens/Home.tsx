@@ -1,6 +1,6 @@
 import { navigate } from '../router.js';
 import { t } from '../i18n.js';
-import { Bag, Bike, Bolt, Lock, Play, Seed, Store } from '../ui/icons.js';
+import { Bag, Bike, Bolt, Camera, Lock, Seed, Sparkle, Store } from '../ui/icons.js';
 import { Brand, LangToggle } from '../ui/kit.js';
 
 const go = (path: string) => (e: Event) => { e.preventDefault(); navigate(path); };
@@ -17,12 +17,36 @@ export function Home() {
         <Brand />
         <span class="grow" />
         <LangToggle />
-        <a class="chip-link" href="/v" onClick={go('/v')}>{t('Espace vendeuse')}</a>
+        <a class="seller-cta" href="/v" onClick={go('/v')}><Store size={16} /> {t('Espace vendeuse')}</a>
       </header>
       <main class="content fade-in" style="gap:28px">
         <section class="stack" style="gap:14px;padding-top:8px">
           <h1 class="display">{t('Le client paie avant.')}<br />{t('Vous êtes payée à la livraison.')}</h1>
           <p class="lede">{t('Le paiement à la livraison sans cash et sans fausse capture, pour les ventes sur WhatsApp, Instagram et TikTok. Le client paie en Mobile Money, vous êtes payée en Mobile Money.')}</p>
+          <div class="hero-actions">
+            <a class="btn primary" href="/v" onClick={go('/v')}><Store size={18} /> {t('Ouvrir mon espace vendeuse')}</a>
+            <span class="tiny muted">{t('Gratuit, sans application à installer. Vos clients et livreurs n’ont pas besoin de compte.')}</span>
+          </div>
+        </section>
+
+        <section class="ai-showcase" aria-labelledby="ai-title">
+          <span class="ai-badge"><Sparkle size={14} color="currentColor" /> {t('IA intégrée')}</span>
+          <h2 id="ai-title">{t('Collez la conversation, l’IA prépare la commande')}</h2>
+          <p class="small ai-lede">{t('Copiez les messages WhatsApp ou importez une capture d’écran : l’IA trouve l’article, le prix, les frais de livraison et le quartier. Vous vérifiez, puis vous envoyez le lien.')}</p>
+          <div class="ai-demo" aria-hidden="true">
+            <div class="ai-in">
+              <span class="ai-msg">{t('« La robe en bazin elle est à combien ? »')}</span>
+              <span class="ai-msg mine">{t('« 35 mille. Livraison 2000 pour Calavi »')}</span>
+              <span class="ai-shot"><Camera size={14} /> {t('ou une capture d’écran')}</span>
+            </div>
+            <div class="ai-arrow"><Sparkle size={18} color="currentColor" /></div>
+            <dl class="ai-out">
+              <div><dt>{t('Article')}</dt><dd>{t('Robe en bazin')}</dd></div>
+              <div><dt>{t('Prix')}</dt><dd>35 000 F</dd></div>
+              <div><dt>{t('Livraison')}</dt><dd>2 000 F</dd></div>
+              <div><dt>{t('Quartier')}</dt><dd>Calavi</dd></div>
+            </dl>
+          </div>
         </section>
 
         <section class="chat" aria-label={t('Exemple : la commande envoyée au client sur WhatsApp')}>
@@ -92,10 +116,8 @@ export function Home() {
         </section>
       </main>
       <footer class="bottom">
-        <a class="btn saffron" href="/demo" onClick={go('/demo')}><Play /> {t('Essayer les 3 rôles en 2 minutes')}</a>
-        <div class="tiny muted center">{t('Démonstration sans compte et sans argent réel, sur ce téléphone')}</div>
-        <a class="btn ghost" href="/demo/real" onClick={go('/demo/real')}><Bolt /> {t('Démo avec de vrais paiements Lightning')}</a>
-        <div class="tiny muted center">{t('Trois vrais wallets de test (sats sans valeur) : argent réellement bloqué puis libéré')}</div>
+        <a class="btn saffron" href="/demo/real" onClick={go('/demo/real')}><Bolt /> {t('Essayer avec de vrais paiements Lightning')}</a>
+        <div class="tiny muted center">{t('Les 3 rôles sur ce téléphone, sans compte. Trois vrais wallets de test (sats sans valeur) : l’argent est réellement bloqué, puis libéré.')}</div>
       </footer>
     </div>
   );
