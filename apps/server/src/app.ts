@@ -485,6 +485,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     if (ctx.config.mode !== 'simulation') throw new HttpError(404, 'NOT_FOUND', 'Indisponible.');
     if (!demoLimiter.take('demo')) throw new HttpError(429, 'RATE_LIMITED', 'Beaucoup de démos en cours. Réessayez dans une minute.');
     if ((req.body as { real?: unknown } | undefined)?.real === true) return startRealDemo(reply);
+    ctx.metrics.inc('demoSimulated');
     const shop = ctx.shops.create({
       name: 'Pagnes de Fifamè (démo)', city: 'Cotonou', demo: true,
       pinHash: await hashPin(String(randomInt(100_000, 1_000_000))), // PIN aléatoire jamais communiqué
@@ -526,6 +527,7 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
       xofPerBtc: await ctx.rate.xofPerBtc(), walletKind: 'nwc',
     });
     demoWallets.set(order.id, wallets);
+    ctx.metrics.inc('demoReal');
     return reply.status(201).send({
       slug: shop.slug,
       orderId: order.id,
@@ -580,7 +582,9 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
   app.post('/api/ai/extract-order', async (req) => {
     sellerShop(req, true);
     const { text } = ExtractInput.parse(req.body);
-    return extractOrder(text, ctx.config.llm ?? {});
+    const r = await extractOrder(text, ctx.config.llm ?? {});
+    ctx.metrics.inc(r.source === 'llm' ? 'aiTextLlm' : 'aiTextRules');
+    return r;
   });
 
   /** Capture d'écran d'une conversation → commande (IA « vision » uniquement ; image ni stockée ni journalisée). */
@@ -589,9 +593,12 @@ export function buildApp(ctx: ServerContext, opts: { logger?: boolean } = {}): F
     if (!imageLimiter.take(shop.id)) throw new HttpError(429, 'RATE_LIMITED', "Trop d'essais. Réessayez dans une minute.");
     const { image } = ImageInput.parse(req.body);
     try {
-      return await extractOrderFromImage(image, ctx.config.llmVision ?? ctx.config.llm ?? {});
+      const r = await extractOrderFromImage(image, ctx.config.llmVision ?? ctx.config.llm ?? {});
+      ctx.metrics.inc('aiImageOk');
+      return r;
     } catch (e) {
       if (e instanceof AiUnavailableError) {
+        ctx.metrics.inc('aiImageFail');
         throw new HttpError(503, 'AI_UNAVAILABLE', "Lecture de la capture indisponible pour le moment. Copiez plutôt le texte de la conversation.");
       }
       throw e;

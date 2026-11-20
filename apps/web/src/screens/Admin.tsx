@@ -21,6 +21,14 @@ interface Overview {
   mode: string;
   totals: { shops: number; demoShops: number; orders: number; demoOrders: number; releasedXof: number; feesXof: number; lockedXof: number; successRate: number | null };
   byState: Record<State, number>;
+  usage: {
+    activeShops7d: number; activeShops30d: number; newShops7d: number; avgBasketXof: number | null;
+    funnel: { created: number; paid: number; released: number };
+    daily: Array<{ date: string; created: number; released: number; volumeXof: number }>;
+    since: string;
+    demos: { real: number; simulated: number };
+    ai: { textLlm: number; textRules: number; imageOk: number; imageFail: number };
+  };
   alerts: { auditChainOk: boolean; auditBrokenAt: number | null; auditEntries: number; overdue: number; payoutsFailed: number; payoutsPending: number; settlePending: number };
   shops: Array<{ id: string; slug: string; name: string; city: string; createdAt: string; suspended: boolean; demo: boolean; orders: number; released: number; volumeXof: number }>;
   recent: Array<{ seq: number; at: string; event: string; order: string; state: string | null }>;
@@ -173,6 +181,54 @@ function Dashboard({ token, onLogout }: { token: string; onLogout: () => void })
             {totals.demoShops > 0 && ` Hors démo : ${totals.demoShops} boutique(s) et ${totals.demoOrders} commande(s) de démonstration.`}
           </div>
         </section>
+
+        <h2 class="section-title">Utilisation</h2>
+        <div class="kpis">
+          <div class="kpi"><b>{data.usage.activeShops7d}</b><span>vendeuses actives (7 j)</span></div>
+          <div class="kpi"><b>{data.usage.activeShops30d}</b><span>vendeuses actives (30 j)</span></div>
+          <div class="kpi"><b>{data.usage.newShops7d}</b><span>nouvelles boutiques (7 j)</span></div>
+          <div class="kpi"><b>{data.usage.avgBasketXof === null ? '–' : xof(data.usage.avgBasketXof)}</b><span>panier moyen livré</span></div>
+        </div>
+
+        <h2 class="section-title">Ventes des 14 derniers jours</h2>
+        <div class="card stack" style="gap:8px">
+          {(() => {
+            const max = Math.max(1, ...data.usage.daily.map((d) => d.created));
+            return (
+              <div class="daychart" role="img" aria-label="Commandes créées et livrées par jour, 14 derniers jours">
+                {data.usage.daily.map((d) => (
+                  <div key={d.date} class="daycol" title={`${d.date} : ${d.created} créée(s), ${d.released} livrée(s), ${xof(d.volumeXof)}`}>
+                    <span class="daybar" style={`height:${(d.created / max) * 100}%`}>
+                      <span class="daybar-ok" style={`height:${d.created ? (d.released / d.created) * 100 : 0}%`} />
+                    </span>
+                    <span class="daylabel">{d.date.slice(8)}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          <div class="tiny muted"><span class="legend created" /> créées · <span class="legend ok" /> livrées et payées</div>
+        </div>
+
+        <h2 class="section-title">Parcours des commandes</h2>
+        <div class="card stack" style="gap:10px">
+          {([['Créées', data.usage.funnel.created], ['Payées (argent bloqué)', data.usage.funnel.paid], ['Livrées et payées', data.usage.funnel.released]] as const).map(([label, n]) => (
+            <div key={label} class="bar-row">
+              <span class="small">{label}</span>
+              <span class="bar"><span class="bar-fill RELEASED" style={`width:${(n / Math.max(1, data.usage.funnel.created)) * 100}%`} /></span>
+              <b class="num small">{n}</b>
+            </div>
+          ))}
+        </div>
+
+        <h2 class="section-title">Démo et IA</h2>
+        <div class="kpis">
+          <div class="kpi"><b>{data.usage.demos.real}</b><span>démos Lightning réelles</span></div>
+          <div class="kpi"><b>{data.usage.demos.simulated}</b><span>démos simulées</span></div>
+          <div class="kpi"><b>{data.usage.ai.textLlm}</b><span>commandes lues par l’IA{data.usage.ai.textRules ? ` (+${data.usage.ai.textRules} par les règles)` : ''}</span></div>
+          <div class="kpi"><b>{data.usage.ai.imageOk}</b><span>captures lues{data.usage.ai.imageFail ? ` (${data.usage.ai.imageFail} échec(s))` : ''}</span></div>
+        </div>
+        <div class="tiny muted">Compteurs depuis le dernier démarrage du serveur ({new Date(data.usage.since).toLocaleString('fr-FR')}).</div>
 
         <h2 class="section-title">Alertes</h2>
         <div class="list">

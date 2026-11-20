@@ -44,6 +44,18 @@ export interface ServerConfig {
   fetch?: typeof fetch | undefined;
 }
 
+/** Compteurs d'usage (démos, IA) depuis le dernier démarrage du serveur. Aucune donnée personnelle. */
+export class UsageMetrics {
+  readonly since = new Date();
+  private readonly counts = new Map<string, number>();
+  inc(key: string): void {
+    this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
+  }
+  get(key: string): number {
+    return this.counts.get(key) ?? 0;
+  }
+}
+
 export interface ServerContext {
   config: ServerConfig;
   db: Db;
@@ -58,6 +70,7 @@ export interface ServerContext {
   wallets: WalletRegistry;
   /** Wallet simulé : permet le « wallet de démo » pour les boutiques sans wallet réel. */
   simWallet?: MemoryHoldWallet | undefined;
+  metrics: UsageMetrics;
 }
 
 export function createServerContext(config: ServerConfig): ServerContext {
@@ -86,7 +99,7 @@ export function createServerContext(config: ServerConfig): ServerContext {
 
   const rate: RateProvider = config.fixedXofPerBtc ? new FixedRate(config.fixedXofPerBtc) : new MempoolRate(60_000_000);
 
-  return {
+  return { metrics: new UsageMetrics(),
     config,
     db,
     engine,

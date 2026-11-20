@@ -355,3 +355,24 @@ body.demo-on .screen .lang-toggle { display: none; }
 .install-btn { min-height: 46px; }
 button.link-row.install-row { width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .install-help { background: var(--indigo-soft); color: var(--indigo-ink); border-radius: var(--r-m); padding: 10px 12px; line-height: 1.45; }
+
+/* Administration : indicateurs et graphique */
+.kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.kpi b { font-family: var(--font-display); font-size: 22px; line-height: 1.1; }
+.kpi span { font-size: 12.5px; color: var(--muted); line-height: 1.3; }
+.daychart { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; height: 120px; align-items: end; }
+.daycol { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.daybar { width: 100%; max-width: 18px; min-height: 2px; background: var(--indigo-soft); border-radius: 4px 4px 2px 2px; display: flex; align-items: flex-end; overflow: hidden; }
+.daybar-ok { display: block; width: 100%; background: var(--leaf); }
+.daylabel { font-size: 10px; color: var(--faint); }
+.legend { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
+.legend.created { background: var(--indigo-soft); border: 1px solid var(--indigo); }
+.legend.ok { background: var(--leaf); }
+
+/* Accueil : tarif */
+.pricing { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.price-main { display: flex; align-items: baseline; gap: 10px; }
+.price-main strong { white-space: nowrap; flex-shrink: 0; font-family: var(--font-display); font-size: 34px; color: var(--indigo); line-height: 1; }
+.price-main span { font-size: 15px; line-height: 1.4; }
+.price-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14.5px; color: var(--muted); }

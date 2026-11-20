@@ -109,6 +109,20 @@ export function Home() {
           </ol>
         </section>
 
+        <section class="pricing" aria-labelledby="price-title">
+          <h2 id="price-title">{t('Combien ça coûte ?')}</h2>
+          <div class="price-main">
+            <strong class="num">1 %</strong>
+            <span>{t('du prix de l’article, prélevé uniquement quand la vente est livrée.')}</span>
+          </div>
+          <ul class="price-list">
+            <li>{t('Pas livré, pas de frais : le client est remboursé et vous ne payez rien.')}</li>
+            <li>{t('Minimum 25 FCFA, plafonné à 1 000 FCFA par vente. Rien sur les frais de livraison.')}</li>
+            <li>{t('Aucun abonnement. Rien à payer pour le client ni pour le livreur.')}</li>
+          </ul>
+          <p class="tiny muted">{t('Exemple : une robe à 35 000 FCFA livrée = 350 FCFA de frais. Le détail s’affiche sur chaque commande avant l’envoi.')}</p>
+        </section>
+
         <section class="trust">
           <span class="trust-icon"><Lock size={17} /></span>
           <p class="small muted" style="line-height:1.5">

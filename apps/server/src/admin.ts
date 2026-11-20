@@ -77,9 +77,45 @@ export async function adminOverview(ctx: ServerContext, now = new Date()) {
     perShop.set(o.shopId, s);
   }
 
+  // ---- Utilisation (hors démo)
+  const DAY = 86_400_000;
+  const realShops = shops.filter((s) => !s.demo);
+  const activeSince = (days: number) => new Set(real.filter((o) => o.createdAt.getTime() >= now.getTime() - days * DAY).map((o) => o.shopId)).size;
+  const paidStates = new Set(['FUNDS_LOCKED', 'OUT_FOR_DELIVERY', 'RELEASED', 'REFUNDED']);
+  const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+  const daily = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(now.getTime() - (13 - i) * DAY);
+    return { date: dayKey(d), created: 0, released: 0, volumeXof: 0 };
+  });
+  const byDay = new Map(daily.map((d) => [d.date, d]));
+  for (const o of real) {
+    const d = byDay.get(dayKey(o.createdAt));
+    if (!d) continue;
+    d.created += 1;
+    if (o.state === 'RELEASED') {
+      d.released += 1;
+      d.volumeXof += total(o);
+    }
+  }
+  const usage = {
+    activeShops7d: activeSince(7),
+    activeShops30d: activeSince(30),
+    newShops7d: realShops.filter((s) => new Date(s.createdAt).getTime() >= now.getTime() - 7 * DAY).length,
+    avgBasketXof: released.length ? Math.round(released.reduce((s, o) => s + total(o), 0) / released.length) : null,
+    funnel: { created: real.length, paid: real.filter((o) => paidStates.has(o.state)).length, released: released.length },
+    daily,
+    since: ctx.metrics.since,
+    demos: { real: ctx.metrics.get('demoReal'), simulated: ctx.metrics.get('demoSimulated') },
+    ai: {
+      textLlm: ctx.metrics.get('aiTextLlm'), textRules: ctx.metrics.get('aiTextRules'),
+      imageOk: ctx.metrics.get('aiImageOk'), imageFail: ctx.metrics.get('aiImageFail'),
+    },
+  };
+
   return {
     mode: ctx.config.mode,
     generatedAt: now,
+    usage,
     totals: {
       shops: shops.filter((s) => !s.demo).length,
       demoShops: demoShops.size,

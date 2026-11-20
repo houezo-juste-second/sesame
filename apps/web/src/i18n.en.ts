@@ -354,4 +354,10 @@ export const EN: Record<string, string> = {
   "Sur iPhone, dans Safari : touchez le bouton Partager (le carré avec une flèche), puis « Sur l’écran d’accueil ».": "On iPhone, in Safari: tap the Share button (the square with an arrow), then “Add to Home Screen”.",
   "Comme une application : une icône sur l’écran d’accueil, ouverture en plein écran": "Like an app: an icon on your home screen, opens full screen",
   "Gratuit. Vos clients et livreurs n’ont rien à installer ni de compte à créer.": "Free. Your buyers and couriers have nothing to install and no account to create.",
+  "Combien ça coûte ?": "How much does it cost?",
+  "du prix de l’article, prélevé uniquement quand la vente est livrée.": "of the item price, taken only when the sale is delivered.",
+  "Pas livré, pas de frais : le client est remboursé et vous ne payez rien.": "Not delivered, no fee: the buyer is refunded and you pay nothing.",
+  "Minimum 25 FCFA, plafonné à 1 000 FCFA par vente. Rien sur les frais de livraison.": "Minimum 25 FCFA, capped at 1,000 FCFA per sale. Nothing on delivery fees.",
+  "Aucun abonnement. Rien à payer pour le client ni pour le livreur.": "No subscription. Nothing to pay for the buyer or the courier.",
+  "Exemple : une robe à 35 000 FCFA livrée = 350 FCFA de frais. Le détail s’affiche sur chaque commande avant l’envoi.": "Example: a 35,000 FCFA dress delivered = 350 FCFA fee. The breakdown is shown on every order before you send it.",
 };
